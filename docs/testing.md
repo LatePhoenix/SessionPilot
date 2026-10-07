@@ -17,6 +17,6 @@ The suite covers the original INI, codec, plan, topology, trigger, transaction, 
 - Ollama blocked while a session is Active
 - Trigger suggestions that do not apply, and measurement rows that stay not-measured
 
-GitHub Actions runs `dotnet test SessionPilot.slnx` on `windows-latest` for pushes to `main` only.
+GitHub Actions runs `dotnet test SessionPilot.slnx` on `windows-latest` for pushes to `main` and for pull requests targeting `main`, and skips runs that only change `docs/`, Markdown files, or `.cursor/`.
 
 Graceful close, live Process Lasso writes, power switching, and VR file edits are not exercised against the installed products.
