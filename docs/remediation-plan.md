@@ -224,20 +224,20 @@ Branch: `fix/phase-6-ui-qol`.
 
 Branch: `fix/phase-7-packaging`. Build the installer locally once (`dotnet tool restore` then `dotnet build installer/SessionPilot.Installer/SessionPilot.Installer.wixproj -c Release`). CI does not build it.
 
-- [ ] **7.1 Allow clean upgrades.** Add `<MajorUpgrade DowngradeErrorMessage="A newer version of SessionPilot is already installed." />` to `installer/SessionPilot.Installer/Package.wxs`. Without it, a higher version installs side by side.
-- [ ] **7.2 Keep the version in one place.**
+- [x] **7.1 Allow clean upgrades.** Add `<MajorUpgrade DowngradeErrorMessage="A newer version of SessionPilot is already installed." />` to `installer/SessionPilot.Installer/Package.wxs`. Without it, a higher version installs side by side.
+- [x] **7.2 Keep the version in one place.**
   - Add `<Version>1.0.0</Version>` to `Directory.Build.props`.
   - In `Package.wxs`, set `Version="!(bind.FileVersion.<file id of SessionPilot.App.exe>)"`. If the harvested `Files` element does not give a stable id, pass `$(Version)` through `DefineConstants` in the `.wixproj` and use `Version="$(var.Version)"`.
   - Confirm the MSI's ProductVersion matches the executable's.
-- [ ] **7.3 Remove leftover folders on uninstall.** ICE64 is suppressed, so empty harvested subfolders such as `presets\` stay behind.
+- [x] **7.3 Remove leftover folders on uninstall.** ICE64 is suppressed, so empty harvested subfolders such as `presets\` stay behind.
   - Add `WixToolset.Util.wixext` 6.0.2 and use `util:RemoveFolderEx On="uninstall" Property="SESSIONPILOT_INSTALLFOLDER"`, with the property read back from the existing `HKCU\Software\SessionPilot` value through a `RegistrySearch`. Store the folder path there as a string value; the existing integer key path can stay.
   - Verify by installing and then uninstalling once, and checking that `%LOCALAPPDATA%\Programs\SessionPilot` is gone.
   - `%LOCALAPPDATA%\SessionPilot` (user data and journals) must *not* be removed. Say so in the README.
-- [ ] **7.4 Add an icon and an application manifest.**
+- [x] **7.4 Add an icon and an application manifest.**
   - Add `src/SessionPilot.App/app.ico`, a simple original icon generated in-repo with no third-party art, and set `<ApplicationIcon>`. Use it for the shortcut (`Icon` element) and set `ARPPRODUCTICON`.
   - Add `app.manifest` with per-monitor V2 DPI awareness, `longPathAware`, and `asInvoker`, and reference it from the csproj.
-- [ ] **7.5 Correct the executable name in the docs.** `docs/manual-verification.md` says `SessionPilot --check`, but the executable is `SessionPilot.App.exe`. Change the docs. Do not rename the assembly; that would change the installer and shortcut. Mention the `--check` exit codes (0 or 1, from Phase 1).
-- [ ] **7.6 Note console behavior for `--check`.** It is a `WinExe`, so its output can interleave with the shell prompt. Document `start /wait SessionPilot.App.exe --check` for cmd, and `& .\SessionPilot.App.exe --check | Out-String` for PowerShell, in the README and in `docs/manual-verification.md`. No code change.
+- [x] **7.5 Correct the executable name in the docs.** `docs/manual-verification.md` says `SessionPilot --check`, but the executable is `SessionPilot.App.exe`. Change the docs. Do not rename the assembly; that would change the installer and shortcut. Mention the `--check` exit codes (0 or 1, from Phase 1).
+- [x] **7.6 Note console behavior for `--check`.** It is a `WinExe`, so its output can interleave with the shell prompt. Document `start /wait SessionPilot.App.exe --check` for cmd, and `& .\SessionPilot.App.exe --check | Out-String` for PowerShell, in the README and in `docs/manual-verification.md`. No code change.
 
 ---
 

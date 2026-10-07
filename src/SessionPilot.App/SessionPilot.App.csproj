@@ -19,6 +19,8 @@
     <AssemblyName>SessionPilot.App</AssemblyName>
     <Product>SessionPilot</Product>
     <AssemblyTitle>SessionPilot</AssemblyTitle>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
 </Project>

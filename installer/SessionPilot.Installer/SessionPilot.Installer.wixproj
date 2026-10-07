@@ -7,10 +7,12 @@
     <OutputPath>$(MSBuildThisFileDirectory)..\..\artifacts\installer\</OutputPath>
     <!-- Harvested per-user files cannot each take an HKCU key path. WiX documents these ICE results for that case. -->
     <SuppressIces>ICE38;ICE64;ICE91</SuppressIces>
+    <DefineConstants>Version=$(Version)</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="WixToolset.UI.wixext" Version="6.0.2" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="6.0.2" />
   </ItemGroup>
 
   <Target Name="PublishSessionPilot" BeforeTargets="BeforeBuild">
