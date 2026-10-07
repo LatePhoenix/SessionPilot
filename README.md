@@ -58,4 +58,4 @@ The MSI is written to `artifacts/installer/SessionPilot.msi`. That directory is 
 
 Application files, if you create any, go under `%LOCALAPPDATA%\SessionPilot`. There is no migration from an older product name.
 
-See `docs/` for architecture, compatibility, presets, transactions, privacy, and the manual checks that are intentionally not part of CI.
+See `docs/` for architecture, compatibility, presets, transactions, privacy, and the manual checks that are intentionally not part of CI. The remediation plan in `docs/remediation-plan.md` is complete.

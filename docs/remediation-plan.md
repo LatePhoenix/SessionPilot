@@ -245,17 +245,17 @@ Branch: `fix/phase-7-packaging`. Build the installer locally once (`dotnet tool 
 
 Branch: `fix/phase-8-cleanup`. Small and quick. Combine into one PR.
 
-- [ ] **8.1** Remove the no-op conditional `access == "ok" ? row.CreationTime : row.CreationTime` in `src/SessionPilot.Core/Discovery/InstallationCandidates.cs:102`.
-- [ ] **8.2** Remove the always-true `System.Text.Encoding.UTF8.GetCharCount(bytes) >= 0 &&` in `IniDocument.Decode` (`IniDocument.cs:297`).
-- [ ] **8.3** `TriggerSuggestions.Suggest` has a guard that cannot be reached. Either fold it into `TriggerEngine` with a comment explaining the "suggest-only" contract, or keep it and add a test that pins the contract (the engine never returns `apply`). Prefer the test, because the wrapper is the documented boundary.
-- [ ] **8.4 Document discovery limits.** Discovery only probes the default Process Lasso install and config locations (`LiveDiscovery.cs:9`). The guardrails forbid inventing registry locations, so do not add one. Record it as a known limitation in `docs/compatibility.md`. Optionally, add a user-entered candidate path that is probed read-only exactly like the default. Only do that if it stays small.
-- [ ] **8.5 Update the docs.**
+- [x] **8.1** Remove the no-op conditional `access == "ok" ? row.CreationTime : row.CreationTime` in `src/SessionPilot.Core/Discovery/InstallationCandidates.cs:102`.
+- [x] **8.2** Remove the always-true `System.Text.Encoding.UTF8.GetCharCount(bytes) >= 0 &&` in `IniDocument.Decode` (`IniDocument.cs:297`).
+- [x] **8.3** `TriggerSuggestions.Suggest` has a guard that cannot be reached. Either fold it into `TriggerEngine` with a comment explaining the "suggest-only" contract, or keep it and add a test that pins the contract (the engine never returns `apply`). Prefer the test, because the wrapper is the documented boundary.
+- [x] **8.4 Document discovery limits.** Discovery only probes the default Process Lasso install and config locations (`LiveDiscovery.cs:9`). The guardrails forbid inventing registry locations, so do not add one. Record it as a known limitation in `docs/compatibility.md`. Optionally, add a user-entered candidate path that is probed read-only exactly like the default. Only do that if it stays small.
+- [x] **8.5 Update the docs.**
   - `docs/testing.md`: the new test areas.
   - `docs/roadmap.md`: what shipped.
   - `docs/privacy.md`: redaction scope, persisted state.
   - `README.md`: the `--check` exit code, upgrade behavior, and that uninstall keeps user data.
   - Add a dated line to `docs/refactor-audit.md` pointing to this plan.
-- [ ] **8.6** Tick any remaining boxes, then move this file's status line (below) to "Complete".
+- [x] **8.6** Tick any remaining boxes, then move this file's status line (below) to "Complete".
 
 ---
 
@@ -298,7 +298,7 @@ Branch: `fix/phase-8-cleanup`. Small and quick. Combine into one PR.
 
 ## Status
 
-Not started.
+Complete.
 
 ## New findings
 

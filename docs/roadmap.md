@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped in this tree: read-only discovery, rolling diagnostics, guided VR steps, dry-run presets, a session state machine, isolated journals, a single recorded power owner, an explicit Ollama button, opt-in suggestions, and a measurement log that does not claim frame rate.
+Shipped in this tree: read-only discovery, rolling diagnostics, guided VR steps, dry-run presets, a session state machine, isolated journals, a single recorded power owner, an explicit Ollama button, opt-in suggestions, and a measurement log that does not claim frame rate. Also shipped: startup that survives a bad journal or user loadout, path redaction, Ollama startup that leaves a busy port alone, language-independent power-plan names, INI edits that keep spacing and refuse an encoding they cannot store, sampling and discovery off the UI thread, a power owner and measurement notes that persist on this machine, and a per-user installer that upgrades in place and leaves the data folder on uninstall.
 
 Still blocked on evidence, and not scheduled as silent automation:
 
