@@ -67,24 +67,24 @@ Acceptance: the PR's CI run is green and `main` contains the plan.
 
 Branch: `fix/phase-1-resilience`. Highest priority. A single bad file currently stops the app at startup.
 
-- [ ] **1.1 Add a global exception handler for the WPF app.** In `src/SessionPilot.App/App.xaml.cs`:
+- [x] **1.1 Add a global exception handler for the WPF app.** In `src/SessionPilot.App/App.xaml.cs`:
   - Handle `DispatcherUnhandledException`. Show a `MessageBox` with `CheckReport.Redact(exception.Message)` and a sentence that nothing was written, then set `e.Handled = true`.
   - Also subscribe to `TaskScheduler.UnobservedTaskException` (call `SetObserved`) and `AppDomain.CurrentDomain.UnhandledException` (best-effort message).
   - Do not write a log file in this phase.
-- [ ] **1.2 Let `--check` fail cleanly.** In `App.OnStartup`, wrap the `--check` path in try/catch. On failure, write a redacted one-line error and call `Shutdown(1)`. Success stays `Shutdown(0)`.
-- [ ] **1.3 Skip unreadable journals instead of throwing.** `JournalRecovery.FindIncomplete` (`src/SessionPilot.Core/Transactions/Transactions.cs:257`) throws on a corrupt, empty, or locked journal.
+- [x] **1.2 Let `--check` fail cleanly.** In `App.OnStartup`, wrap the `--check` path in try/catch. On failure, write a redacted one-line error and call `Shutdown(1)`. Success stays `Shutdown(0)`.
+- [x] **1.3 Skip unreadable journals instead of throwing.** `JournalRecovery.FindIncomplete` (`src/SessionPilot.Core/Transactions/Transactions.cs:257`) throws on a corrupt, empty, or locked journal.
   - Catch `JsonException`, `IOException`, and `UnauthorizedAccessException` per file.
   - Return the unreadable files separately. A suggested shape: `JournalScan { IReadOnlyList<JournalRecord> Incomplete; IReadOnlyList<string> UnreadableFileNames }`. Keep `FindIncomplete` as a thin wrapper if existing tests use it.
   - `StartupRecovery.DescribeIncomplete` (`ApprovalBinding.cs:28`) adds a line per unreadable journal, file name only, ending "It was not opened or rolled back."
   - `JournalRecovery.Describe` must also tolerate an unreadable target file and return "The target could not be read. No rollback was applied."
   - Tests: a corrupt JSON file, an empty file, a valid incomplete journal beside a corrupt one, and a locked target in `Describe`.
-- [ ] **1.4 Skip a bad user loadout instead of failing the whole catalog.** `LoadoutCatalog.Load` (`src/SessionPilot.Core/Planning/LoadoutCatalog.cs:19`) throws on one bad user file.
+- [x] **1.4 Skip a bad user loadout instead of failing the whole catalog.** `LoadoutCatalog.Load` (`src/SessionPilot.Core/Planning/LoadoutCatalog.cs:19`) throws on one bad user file.
   - Built-in presets keep throwing: a broken built-in is a packaging bug.
   - A user-directory file that fails JSON parsing or validation, or that collides with an existing id, is skipped and recorded in a new `IReadOnlyList<string> LoadErrors` on the catalog. Record the file name and reason only.
   - `MainWindow.LoadShell` shows `LoadErrors` on the Dashboard.
   - Tests: an invalid JSON user file, a user file with `priorityPolicy: "high"`, and a collision with `balanced`. In each case the catalog still loads and the error is listed.
-- [ ] **1.5 Guard file reads in the window.** In `MainWindow.ApproveCurrentPlan` and `ApplyIsolated` (`MainWindow.xaml.cs:478`, `:506`), wrap hashing in try/catch for `IOException` and `UnauthorizedAccessException`. Uncheck approval and show "The isolated copy could not be read. Nothing was written."
-- [ ] **1.6 Stop path normalization from throwing.** `TransactionCoordinator.IsLivePath` (`Transactions.cs:161`) calls `Path.GetFullPath`, which can throw on malformed input outside the try block.
+- [x] **1.5 Guard file reads in the window.** In `MainWindow.ApproveCurrentPlan` and `ApplyIsolated` (`MainWindow.xaml.cs:478`, `:506`), wrap hashing in try/catch for `IOException` and `UnauthorizedAccessException`. Uncheck approval and show "The isolated copy could not be read. Nothing was written."
+- [x] **1.6 Stop path normalization from throwing.** `TransactionCoordinator.IsLivePath` (`Transactions.cs:161`) calls `Path.GetFullPath`, which can throw on malformed input outside the try block.
   - Normalize inside a helper that returns `false` for a path that cannot be normalized, on the candidate side only.
   - If the *target* cannot be normalized, refuse with "The target path is not valid."
   - Move `Directory.CreateDirectory(request.JournalDirectory)` after the approval and live-path refusals so a refused request creates nothing.
