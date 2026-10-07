@@ -29,6 +29,7 @@
                     <Button x:Name="NavLoadouts" Content="Loadouts" Style="{StaticResource NavButton}" Click="ShowLoadouts"/>
                     <Button x:Name="NavPrompt" Content="Prompt" Style="{StaticResource NavButton}" Click="ShowPrompt"/>
                     <Button x:Name="NavPlan" Content="Plan review" Style="{StaticResource NavButton}" Click="ShowPlan"/>
+                    <Button x:Name="NavSession" Content="Session" Style="{StaticResource NavButton}" Click="ShowSession"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -106,6 +107,24 @@
                 </DockPanel>
 
                 <ListBox x:Name="PagePlan" Visibility="Collapsed"/>
+
+                <DockPanel x:Name="PageSession" Visibility="Collapsed">
+                    <StackPanel DockPanel.Dock="Top">
+                        <TextBlock x:Name="SessionPhaseText" Text="Idle" FontFamily="Cascadia Mono, Consolas" Margin="0,0,0,8"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <Button Content="Begin" Style="{StaticResource PrimaryButton}" Click="BeginSession"/>
+                            <Button Content="Continue" Margin="8,0,0,0" Style="{StaticResource PrimaryButton}" Click="ContinueSession"/>
+                        </StackPanel>
+                        <TextBlock Text="Confirmed path or URI" Foreground="#9FB0C3"/>
+                        <TextBox x:Name="LaunchPath" Margin="0,4,0,8"/>
+                        <CheckBox x:Name="PathConfirmed" Content="I confirmed this path or URI" Foreground="#EAF1F8"/>
+                        <CheckBox x:Name="AlreadyRunning" Content="Already running; do not take ownership" Foreground="#EAF1F8" Margin="0,8,0,8"/>
+                        <TextBlock Text="Approved arguments, one per line. Prompt text is not used." Foreground="#9FB0C3"/>
+                        <TextBox x:Name="LaunchArguments" AcceptsReturn="True" Height="80" Margin="0,4,0,8"/>
+                        <Button Content="Launch" HorizontalAlignment="Left" Style="{StaticResource PrimaryButton}" Click="LaunchConfirmed"/>
+                        <TextBlock x:Name="LaunchResultText" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </DockPanel>
             </Grid>
         </DockPanel>
     </Grid>

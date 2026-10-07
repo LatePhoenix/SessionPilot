@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     private readonly Dictionary<string, TimeSpan> _previousCpu = new();
     private readonly Stopwatch _sampleClock = new();
     private LoadoutCatalog? _catalog;
+    private readonly SessionCoordinator _session = new();
     private CompiledPlan? _plan;
     private HonestStatus _status = new();
     private int _logicalProcessors;
@@ -77,6 +78,7 @@ public partial class MainWindow : Window
     private void ShowLoadouts(object sender, RoutedEventArgs e) => ShowPage(PageLoadouts, NavLoadouts, "Loadouts");
     private void ShowPrompt(object sender, RoutedEventArgs e) => ShowPage(PagePrompt, NavPrompt, "Prompt");
     private void ShowPlan(object sender, RoutedEventArgs e) => ShowPage(PagePlan, NavPlan, "Plan review");
+    private void ShowSession(object sender, RoutedEventArgs e) => ShowPage(PageSession, NavSession, "Session");
 
     private void ShowPage(UIElement page, Button active, string title)
     {
@@ -85,9 +87,10 @@ public partial class MainWindow : Window
         PageLoadouts.Visibility = Visibility.Collapsed;
         PagePrompt.Visibility = Visibility.Collapsed;
         PagePlan.Visibility = Visibility.Collapsed;
+        PageSession.Visibility = Visibility.Collapsed;
         page.Visibility = Visibility.Visible;
         PageTitle.Text = title;
-        foreach (var button in new[] { NavDashboard, NavDiagnostics, NavLoadouts, NavPrompt, NavPlan })
+        foreach (var button in new[] { NavDashboard, NavDiagnostics, NavLoadouts, NavPrompt, NavPlan, NavSession })
         {
             button.Background = Brushes.Transparent;
         }
@@ -309,6 +312,66 @@ public partial class MainWindow : Window
             change.SupportStatus + "  writable=" + change.Writable).ToList();
     }
 
+    private void BeginSession(object sender, RoutedEventArgs e)
+    {
+        if (_session.Phase is SessionPhase.Completed or SessionPhase.Cancelled or SessionPhase.Failed)
+        {
+            _session.TryTransition(SessionPhase.Idle, out _);
+        }
+
+        SessionPhaseText.Text = _session.TryTransition(SessionPhase.Discovering, out var reason)
+            ? _session.Phase.ToString()
+            : reason;
+    }
+
+    private void ContinueSession(object sender, RoutedEventArgs e)
+    {
+        SessionPhase? next = _session.Phase switch
+        {
+            SessionPhase.Discovering => SessionPhase.Observing,
+            SessionPhase.Observing => SessionPhase.Planning,
+            SessionPhase.Planning => SessionPhase.AwaitingApproval,
+            SessionPhase.AwaitingApproval when _plan is not null => SessionPhase.Preparing,
+            SessionPhase.Preparing => SessionPhase.Active,
+            SessionPhase.Active => SessionPhase.Restoring,
+            SessionPhase.Restoring => SessionPhase.Completed,
+            _ => null
+        };
+        if (next is null || !_session.TryTransition(next.Value, out var reason))
+        {
+            SessionPhaseText.Text = "Staying in " + _session.Phase + ". Compile a plan before preparing.";
+            return;
+        }
+
+        SessionPhaseText.Text = _session.Phase + ". " + reason;
+        if (_session.Phase == SessionPhase.Completed)
+        {
+            _status = _status with { Compiled = _status.Compiled, PerformanceEffect = "not-measured" };
+            ApplyStatus();
+        }
+    }
+
+    private void LaunchConfirmed(object sender, RoutedEventArgs e)
+    {
+        if (_session.Phase is not (SessionPhase.Preparing or SessionPhase.Active))
+        {
+            LaunchResultText.Text = "Launch is available while the session is Preparing or Active. Nothing was started.";
+            return;
+        }
+
+        var arguments = LaunchArguments.Text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var result = _session.Launch(new ConfirmedLaunch
+        {
+            PathOrUri = LaunchPath.Text.Trim(),
+            PathConfirmed = PathConfirmed.IsChecked == true,
+            ApprovedArguments = arguments,
+            PromptText = PromptBox.Text,
+            AlreadyRunning = AlreadyRunning.IsChecked == true
+        }, new ShellStarter(), readinessTimedOut: false);
+        LaunchResultText.Text = result.Detail + Environment.NewLine + _session.RelaunchNote() +
+                                Environment.NewLine + "Owned: " + _session.Owned.Count + ". Already running: " + _session.AlreadyRunning.Count + ".";
+    }
+
     private void ApplyStatus()
     {
         StatusCompiled.Text = _status.Compiled;
@@ -336,4 +399,28 @@ internal sealed class LiveWindowCloser(Process process) : ICloseRequest
     public bool HasMainWindow => process.MainWindowHandle != IntPtr.Zero;
 
     public bool TryCloseMainWindow() => process.CloseMainWindow();
+}
+
+internal sealed class ShellStarter : IProcessStarter
+{
+    public bool Start(string pathOrUri, IReadOnlyList<string> arguments)
+    {
+        try
+        {
+            var info = new ProcessStartInfo
+            {
+                FileName = pathOrUri,
+                UseShellExecute = true,
+                Arguments = string.Join(" ", arguments.Select(Quote))
+            };
+            return Process.Start(info) is not null;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static string Quote(string argument) =>
+        argument.Contains(' ', StringComparison.Ordinal) ? "\"" + argument.Replace("\"", "", StringComparison.Ordinal) + "\"" : argument;
 }
