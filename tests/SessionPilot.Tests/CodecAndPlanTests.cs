@@ -174,6 +174,14 @@ public class CodecAndPlanTests
     }
 
     [Fact]
+    public void ForbiddenRequests_WarnEvenWhenNoWorkloadMatched()
+    {
+        var interpretation = DeterministicInterpreter.Interpret("kill everything and set realtime priority");
+        Assert.False(interpretation.Success);
+        Assert.Contains(interpretation.Warnings, warning => warning.Contains("Real-time priority", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void QuotedPathLikeNames_AreFiltered()
     {
         var interpretation = DeterministicInterpreter.Interpret("play \"notepad\" and \"C:\\game.exe\" and \"..\\secret\"");

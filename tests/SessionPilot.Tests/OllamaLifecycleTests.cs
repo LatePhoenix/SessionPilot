@@ -104,7 +104,7 @@ public class OllamaLifecycleTests
     {
         var request = Request();
         Assert.Equal(TimeSpan.FromSeconds(20), request.StartupBudget);
-        Assert.Equal(TimeSpan.FromSeconds(60), request.RequestTimeout);
+        Assert.Equal(TimeSpan.FromSeconds(120), request.RequestTimeout);
     }
 
     [Fact]
@@ -180,6 +180,112 @@ public class OllamaLifecycleTests
         Assert.Equal(1, stopped);
     }
 
+    [Fact]
+    public async Task SlowRefusedProbe_IsTreatedAsDown_AndStartsOllama()
+    {
+        var launcher = new CountingLauncher();
+        var host = new ProbingOllamaHost(new HttpClient(new SlowRefusedHandler(TimeSpan.FromMilliseconds(2500))), launcher);
+
+        await using var session = await host.AcquireAsync(new Uri("http://127.0.0.1:11434/api/chat"), TimeSpan.FromSeconds(20), CancellationToken.None);
+
+        Assert.Equal(1, launcher.Calls);
+        Assert.True(ProbingOllamaHost.ProbeLimit >= TimeSpan.FromSeconds(4));
+    }
+
+    [Fact]
+    public async Task Request_ListsTheLoadoutIds_AndLimitsTheSchemaToThem()
+    {
+        var catalog = LoadoutCatalog.Load(Path.Combine(AppContext.BaseDirectory, "presets"));
+        var handler = new CaptureHandler(ValidBody());
+        var client = new OllamaIntentClient(new HttpClient(handler), new ScriptedHost(OllamaAvailability.AlreadyRunning));
+
+        await client.InterpretAsync(Request(), catalog, CancellationToken.None);
+
+        using var body = System.Text.Json.JsonDocument.Parse(handler.Body);
+        var ids = body.RootElement.GetProperty("format").GetProperty("properties").GetProperty("loadoutId").GetProperty("enum")
+            .EnumerateArray().Select(id => id.GetString() ?? "").ToList();
+        Assert.Equal(catalog.All.Select(loadout => loadout.Id).ToList(), ids);
+        var system = body.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!;
+        Assert.All(catalog.All, loadout => Assert.Contains("- " + loadout.Id + ": ", system, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Reconcile_DropsApplicationsThatWereNotTyped()
+    {
+        var result = OllamaIntentClient.Reconcile(Model("desktop-gaming", "GameName1", "Steam"), "playing games in steam tonight");
+
+        Assert.True(result.Success);
+        Assert.Equal(["Steam"], result.Intent!.RequestedApplications);
+        Assert.Contains(result.Warnings, warning => warning.Contains("dropped", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Reconcile_RefusesToCompileWhenTheWordingDisagrees()
+    {
+        var result = OllamaIntentClient.Reconcile(Model("desktop-gaming"), "compiling a big solution");
+
+        Assert.False(result.Success);
+        Assert.Null(result.Intent);
+        Assert.Contains("development-build-heavy", result.Explanation, StringComparison.Ordinal);
+        Assert.Contains("Nothing was compiled.", result.Explanation, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Reconcile_KeepsTheModelChoice_WhenTheWordingMatchesNothing()
+    {
+        var result = OllamaIntentClient.Reconcile(Model("media-playback"), "something cozy on the couch");
+
+        Assert.True(result.Success);
+        Assert.Equal("media-playback", result.Intent!.LoadoutId);
+    }
+
+    [Theory]
+    [InlineData("registry.ollama.ai/library/phi3/latest", "phi3")]
+    [InlineData("registry.ollama.ai/library/qwen2.5-coder/14b", "qwen2.5-coder:14b")]
+    [InlineData("registry.ollama.ai/someone/tiny/latest", "someone/tiny")]
+    [InlineData("example.test/team/model/v2", "example.test/team/model:v2")]
+    [InlineData("registry.ollama.ai/library/phi3", null)]
+    public void OllamaModelNames_AreReadFromManifestPaths(string relative, string? expected)
+    {
+        Assert.Equal(expected, OllamaModels.Name(relative));
+    }
+
+    [Fact]
+    public void InstalledOllamaModels_AreListedFromASyntheticFolder()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "sessionpilot-models-" + Guid.NewGuid().ToString("n"));
+        try
+        {
+            foreach (var relative in new[] { "registry.ollama.ai/library/phi3/latest", "registry.ollama.ai/library/llama3/8b" })
+            {
+                var file = Path.Combine(root, "manifests", relative);
+                Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+                File.WriteAllText(file, "{}");
+            }
+
+            Assert.Equal(["llama3:8b", "phi3"], OllamaModels.Installed(root));
+            Assert.Empty(OllamaModels.Installed(Path.Combine(root, "missing")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static Interpretation Model(string loadoutId, params string[] applications) => new()
+    {
+        Success = true,
+        Intent = new UserIntent
+        {
+            LoadoutId = loadoutId,
+            Objective = "frame-time-consistency",
+            SessionMode = "temporary",
+            PowerPreference = "balanced",
+            BackgroundPolicy = "preserve",
+            RequestedApplications = applications
+        }
+    };
+
     private static OllamaRequest Request() => new()
     {
         Endpoint = "http://127.0.0.1:11434",
@@ -248,6 +354,15 @@ public class OllamaLifecycleTests
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
             throw new HttpRequestException("Connection refused.");
+    }
+
+    private sealed class SlowRefusedHandler(TimeSpan delay) : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            await Task.Delay(delay, cancellationToken);
+            throw new HttpRequestException("Connection refused.");
+        }
     }
 
     private sealed class HangingHandler : HttpMessageHandler

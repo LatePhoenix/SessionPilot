@@ -59,9 +59,13 @@ public sealed class ProbingOllamaHost : IOllamaHost
         };
     }
 
+    // Windows takes about 2 seconds to report a refused loopback connection, so a shorter limit
+    // would read "nothing is listening" as "timed out" and never start Ollama.
+    internal static readonly TimeSpan ProbeLimit = TimeSpan.FromSeconds(5);
+
     private async Task<ProbeResult> ProbeAsync(Uri health, TimeSpan budget, CancellationToken cancellationToken)
     {
-        var limit = budget < TimeSpan.FromSeconds(2) ? budget : TimeSpan.FromSeconds(2);
+        var limit = budget < ProbeLimit ? budget : ProbeLimit;
         using var probeTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         probeTimeout.CancelAfter(limit);
         try

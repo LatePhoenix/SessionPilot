@@ -72,9 +72,18 @@ public class ProcessAndStateTests
 
         File.WriteAllText(path, "{");
         var corrupt = AppStateStore.Load(path, out var corruptNote);
-        Assert.Equal("state.json The file is not valid JSON.", corruptNote);
+        Assert.Equal("state.json: The file is not valid JSON. It was moved to state.json.unreadable and defaults were used.", corruptNote);
         Assert.Equal(nameof(PowerOwnerKind.Unset), corrupt.PowerOwner);
         Assert.Empty(corrupt.Measurements);
+        Assert.False(File.Exists(path));
+        Assert.Equal("{", File.ReadAllText(path + ".unreadable"));
+
+        // The next start is quiet, and a second corrupt file replaces the older copy.
+        AppStateStore.Load(path, out var quietNote);
+        Assert.Null(quietNote);
+        File.WriteAllText(path, "[");
+        AppStateStore.Load(path, out _);
+        Assert.Equal("[", File.ReadAllText(path + ".unreadable"));
         Directory.Delete(directory, recursive: true);
     }
 }

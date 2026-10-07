@@ -22,23 +22,41 @@ public static class AppStateStore
         try
         {
             var state = JsonSerializer.Deserialize<AppState>(File.ReadAllBytes(path));
-            if (state is null)
+            if (state is not null)
             {
-                note = "state.json The file is not valid JSON.";
-                return new AppState();
+                return Normalize(state);
             }
 
-            return Normalize(state);
+            note = SetAside(path, "The file is not valid JSON.");
         }
         catch (JsonException)
         {
-            note = "state.json The file is not valid JSON.";
-            return new AppState();
+            note = SetAside(path, "The file is not valid JSON.");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            note = "state.json The file could not be read.";
-            return new AppState();
+            note = Path.GetFileName(path) + ": The file could not be read. Defaults were used.";
+        }
+
+        return new AppState();
+    }
+
+    /// <summary>
+    /// Moves an unparseable state file aside so the next save cannot overwrite what was in it.
+    /// The note is shown once, because the file is gone on the next start.
+    /// </summary>
+    private static string SetAside(string path, string reason)
+    {
+        var name = Path.GetFileName(path);
+        var aside = path + ".unreadable";
+        try
+        {
+            File.Move(path, aside, overwrite: true);
+            return name + ": " + reason + " It was moved to " + Path.GetFileName(aside) + " and defaults were used.";
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return name + ": " + reason + " Defaults were used.";
         }
     }
 

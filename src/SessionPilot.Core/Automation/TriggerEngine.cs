@@ -66,7 +66,7 @@ public static class TriggerEngine
         {
             if (snapshot.SessionEndedAt is null || snapshot.ActiveLoadoutId is null || snapshot.ActiveLoadoutId == "balanced")
             {
-                return Hold("No workload signal.");
+                return Hold(snapshot.SignaledLoadouts.Count > 0 ? "No known loadout in the signals." : "No workload signal.");
             }
 
             if (now - snapshot.SessionEndedAt.Value < options.ExitGrace)
