@@ -4,7 +4,9 @@ These checks are for a person at the machine. CI does not perform them, and they
 
 ## Read-only check
 
-Run `SessionPilot --check` from a terminal. Expect live writes disabled, active configuration assumed no, performance effect not-measured, and sampling loop not started. Confirm the report has no profile path and no configuration values.
+Run `SessionPilot.App.exe --check` from a terminal. Exit code 0 means the report was written. Exit code 1 means the check failed. Expect live writes disabled, active configuration assumed no, performance effect not-measured, and sampling loop not started. Confirm the report has no profile path and no configuration values.
+
+The executable is a Windows application, so its output can interleave with the shell prompt. From cmd, use `start /wait SessionPilot.App.exe --check`. From PowerShell, use `& .\SessionPilot.App.exe --check | Out-String`.
 
 ## Window
 
