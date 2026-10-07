@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "desktop-gaming",
+  "displayName": "Desktop gaming",
+  "summary": "Offer Performance Mode for one confirmed game and leave placement alone.",
+  "objective": "frame-time-consistency",
+  "sessionMode": "temporary",
+  "powerPreference": "performance",
+  "backgroundPolicy": "preserve",
+  "offerPerformanceMode": true,
+  "offerEfficiencyModeOff": true,
+  "priorityPolicy": "unchanged",
+  "cpuPlacementPolicy": "unchanged",
+  "proBalancePolicy": "preserve",
+  "requiresExplicitWorkers": false,
+  "participantRoles": ["game"],
+  "notes": [
+    "Only a confirmed game is a candidate participant.",
+    "No universal affinity or priority elevation is proposed."
+  ]
+}

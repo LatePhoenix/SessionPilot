@@ -1,0 +1,480 @@
+SESSIONPILOT — PROJECT SPECIFICATION AND REFACTORING BLUEPRINT
+Version 1.0 | October 7, 2026
+Working name; not a required repository or executable rename.
+
+EXECUTIVE SUMMARY
+SessionPilot evolves the existing Process-Lasso-only project into a Windows
+workload session manager. It diagnoses resource contention, proposes bounded
+changes, prepares an activity-specific environment, launches selected tools,
+applies compatible configuration, measures outcomes, and restores owned state.
+Process Lasso remains a first-class integration and enforcement engine.
+The product is not a replacement scheduler, an autonomous system administrator,
+or a collection of undocumented performance tweaks.
+
+The initial motivating use case is poor VRChat performance through SteamVR and
+Virtual Desktop. Secondary use cases include desktop gaming, interactive
+software development, builds, local inference, media playback, and background
+batch work. Presets must work offline without an LLM.
+
+STATUS OF THIS DOCUMENT
+This specification consolidates the preceding project discussion. It does not
+assert that any feature is already implemented. The current repository was not
+inspected. Integration feasibility is separated from product requirements.
+The implementer must discover actual code, active configuration, and supported
+interfaces before enabling writes.
+
+1. PRODUCT GOALS
+G1. Explain what consumes resources during a selected activity.
+G2. Distinguish observed contention from speculative optimization.
+G3. Offer user-approved cleanup of optional applications.
+G4. Preserve game, runtime, streaming, audio, security, and system participants.
+G5. Compile natural language into a constrained, deterministic plan.
+G6. Apply verified Process Lasso rules while preserving unrelated configuration.
+G7. Coordinate launching, power behavior, and verified application settings.
+G8. Track session ownership and restore changes without erasing newer edits.
+G9. Show persistence, enforcement, and performance measurement separately.
+G10. Keep overhead low; inference runs on demand, not continuously during play.
+G11. Preserve and migrate existing project behavior rather than rewrite blindly.
+G12. Make unsupported capabilities explicit and useful through guided workflows.
+
+SUCCESS CRITERIA
+- A user can complete a read-only diagnostic without administrator privileges.
+- A preset produces a complete preview without an AI provider.
+- Expensive processes are reported from rolling samples, not a single snapshot.
+- Unknown processes are never automatically classified as disposable.
+- Approved graceful closure does not silently escalate to force termination.
+- Existing Process Lasso rules survive unrelated session changes.
+- External edits create conflicts rather than silent overwrites.
+- Interrupted transactions are detected on restart.
+- Loadouts can be applied without claiming an unmeasured performance gain.
+- Feature-disabled adapters explain what evidence or interface is missing.
+
+NON-GOALS
+- Guaranteed maximum FPS or automatic cure for all VRChat performance issues.
+- Game injection, memory modification, anti-cheat bypass, or executable patching.
+- Automatic BIOS changes, driver replacement, blanket service disabling,
+  antivirus shutdown, registry tweak packs, or RAM cleaning.
+- Arbitrary shell execution authored by an LLM.
+- Continuous autonomous experimentation during normal gameplay.
+- Router administration or firmware changes in the MVP.
+- A permanent privileged service in the MVP.
+- Replicating Process Lasso's scheduler or ProBalance algorithm.
+
+2. TARGET USERS AND WORKLOADS
+Primary: hands-on Windows users running multiple interdependent VR applications.
+Secondary: developers juggling editors, builds, containers, inference, and media.
+
+Initial loadouts:
+A. Balanced / restore: end session-owned configuration; preserve user baseline.
+B. VRChat social: prioritize frame-time consistency and required VR/audio tools.
+C. VR crowded-instance diagnostic: guided avatar/graphics comparison.
+D. Desktop gaming: protect the selected game and required launch/runtime tools.
+E. Interactive development: preserve editor responsiveness and current work.
+F. Build-heavy development: offer targeted policy for identified build workers.
+G. Local AI development: identify actual inference engine; allow unload/pause
+   only through a supported provider mechanism.
+H. Media playback: playback continuity and optional keep-awake.
+I. Background batch: user-selected workers with explicitly bounded resource policy.
+
+A loadout describes desired policy, not a raw Process Lasso profile.
+A native Process Lasso profile is a configuration directory. Switching native
+profiles is optional and must not become a prerequisite for the product.
+
+3. CORE USER JOURNEYS
+J1. Diagnose VR performance
+Select VR workload -> discover participants -> collect rolling observations ->
+enter overlay/frame timing data if needed -> inspect likely causes and unknowns
+-> save a report -> compare a controlled intervention.
+
+J2. Prepare a session
+Select preset or enter prompt -> resolve application identities -> review plan
+-> approve individual actions -> snapshot applicable state -> execute in order
+-> verify -> launch workload -> monitor lightly -> restore at session end.
+
+J3. Clean up background work
+Observe sustained cost -> explain optional candidates -> user approves exact
+application action -> pause or gracefully close -> report actual result.
+
+J4. Natural-language request
+“I will play VRChat through SteamVR; keep my audio tools and close optional apps.”
+Interpret intent -> select known preset -> confirm unresolved identities ->
+compile policy -> preview. No raw model output reaches configuration writers.
+
+J5. Recover
+On startup, find incomplete session/transaction -> inspect current state ->
+reconcile journal -> offer safe restoration or conflict resolution.
+
+4. STATE MODEL
+A. Desired state: portable loadout goals and policies.
+B. Persisted configuration: app data and third-party configuration files.
+C. Runtime engine state: active rules, timers, restraints, and trigger membership.
+D. Effective OS/application state: actual process settings and selected power plan.
+E. Observed performance: timestamped measurements with provenance and confidence.
+
+Never equate A with D or B with E. A file read-back proves persistence, not
+engine reload. A successful action proves execution, not improved frame times.
+
+5. DISCOVERY AND DIAGNOSTICS
+Discover hardware, OS version, installation evidence, process identity, launch
+context, candidate configuration paths, and supported capabilities.
+Represent uncertainty instead of assuming every detected path is active.
+
+Process observation:
+- CPU time deltas over a monotonic sampling interval.
+- Explicit CPU normalization convention: fraction of total logical CPU capacity
+  and optionally logical-core equivalents; label values consistently.
+- GPU engine activity where supported, keeping engine identity.
+- Working set, private bytes, available memory, commit pressure, paging signals.
+- Disk activity when available; unsupported collectors degrade cleanly.
+- Executable path/publisher, PID plus creation time, parent evidence, windows.
+- Access-denied and exited-process states.
+- Application grouping with confidence, not parent-PID guessing alone.
+
+PID reuse must not turn a previously approved target into a different process.
+Revalidate PID, creation time, and executable identity immediately before action.
+
+Resource demand is not dispensability. High working set is not proof of memory
+pressure; freeing RAM is not proof of increased FPS. GPU engine utilization
+must not be naively summed across engines. Cross-check suspicious metrics and
+label counter limitations.
+
+Initial diagnostic rules should be deterministic and explainable, not an opaque
+single health score. Distinguish observed competition, possible bottlenecks,
+missing telemetry, and unsupported causal conclusions.
+
+Sampling defaults are implementation choices to validate, not scientific facts:
+start with configurable low-frequency samples and bounded rolling windows;
+stop expensive detail collection when the dashboard is closed. Benchmark the
+collector itself. Store raw observations only when requested or for a bounded
+session capture. No unbounded process history.
+
+6. VR-SPECIFIC DIAGNOSTICS
+Protected participants are discovered and confirmed:
+- VRChat game.
+- SteamVR runtime/compositor.
+- Virtual Desktop streamer when used.
+- Audio routing, voice processing, and user-required companion applications.
+
+Do not treat helper processes as expendable merely because they are background.
+
+Separate game rendering, encoding, network, and headset decoding where evidence
+exists. Virtual Desktop overlay readings may be entered manually initially;
+there is no assumed supported telemetry API. OCR is not MVP and would need
+permission, quality checks, and transparent uncertainty.
+
+VR measurement requires validated compositor/headset-relevant timing. Desktop
+PresentMon capture must not be mislabeled as headset frame delivery.
+
+Record context: world, population estimate, avatar policy, render settings,
+refresh rate, stream quality/bitrate/codec, session duration, and interventions.
+Allow unknown fields. Avoid collecting other users' identities unnecessarily.
+
+Controlled experiment: comparable quiet-world baseline, crowded-world run,
+avatar-policy change, cleanup change, and Process Lasso change, separately.
+Vary one intervention at a time; record confounders and repeated trials.
+
+7. CLEANUP ADVISOR
+Classifications:
+- Required workload participant: protected.
+- User-approved optional application: propose pause or graceful close.
+- Known worker with verified adapter: supported pause or priority adjustment.
+- Unknown: inspect and ask; no unattended termination.
+- System/security/driver infrastructure: excluded from automatic cleanup.
+- Possible unsaved work: interactive close; do not bypass application prompts.
+
+Candidate ranking considers sustained competing activity, current bottleneck,
+user policy, app identity, and reversibility. Cost alone never authorizes action.
+Do not throttle all python.exe, node.exe, browsers, editors, or terminals.
+
+Action ladder:
+1. Supported app-specific pause/unload.
+2. Approved targeted priority policy through a single chosen owner.
+3. Graceful main-window close or supported app quit interface.
+4. Wait and report refusal/prompt/no supported close method.
+5. Separate explicitly approved force termination, outside default automation.
+
+Process.Close() is not application termination. CloseMainWindow() is a request;
+Kill() is forceful. Do not claim a successful request means the process exited.
+
+Multi-process applications need application grouping and precise scope. A generic
+process-tree kill is not an acceptable cleanup default. Relaunch does not restore
+unsaved documents, tabs, remote jobs, or exact application state.
+
+8. PROCESS LASSO INTEGRATION
+Keep existing working integration as a first-class adapter.
+Investigate before changes:
+- Installed version and edition/license capability where discoverable.
+- GUI/governor processes and user/service context.
+- Confirmed active configuration path.
+- Native profiles, configuration ownership, reload behavior.
+- Real before/after exports for each supported rule family.
+
+Documented conceptual families include ProBalance, persistent CPU priority,
+affinity, CPU Sets, Efficiency Mode, I/O/memory priority, application power
+profiles, IdleSaver, keep-awake, process instance/control rules, and watchdogs.
+This capability list is not a complete verified current INI schema.
+
+Initial write support: only rule families with real version-tagged fixtures,
+verified matching/order, valid values, and enforcement tests. Performance-mode
+membership or Efficiency Mode may be desirable, but remain disabled if their
+codec has not been verified. Do not invent keys from descriptive names.
+
+Published historical documentation contains discrepancies in names, defaults,
+and watchdog examples. Native JSON selective export is useful fixture material;
+it does not prove a CLI import endpoint. ConfigFolder arguments do not prove
+runtime switching. Treat file notification/reload behavior as version-tested.
+
+Lossless editing preserves unknown sections, keys, rules, comments where feasible,
+encoding/BOM, line endings, order, and unmodified text. Ambiguous duplicate keys
+or selector semantics block the affected write.
+
+Conservative presets preserve ProBalance and existing priorities/placement.
+No universal High priority, CPU-0 exclusion, SMT restriction, or broad exclusions.
+Hardware-aware CPU Sets remain experimental after topology discovery and codec
+verification. Removing a persistent rule may stop enforcement without restoring
+live state; verify actual restoration independently.
+
+Do not create a competing direct Windows policy writer for settings already
+owned by Process Lasso. Conflicts require one selected owner.
+
+9. EXPANDED ADAPTERS
+Session launcher: confirmed executable/URI, arguments, readiness criteria,
+timeout, dependency order, ownership, and optional shutdown at session end.
+Do not put arbitrary prompt-generated commands into launcher fields.
+Already-running applications are not owned simply because a session uses them.
+
+Windows power: discover available plans; capture baseline; select approved plan;
+verify; restore only if current plan remains session-owned. Coordinate with
+Process Lasso application power rules. Never let both adapters race for ownership.
+
+SteamVR: read-only inventory first; supported APIs preferred. JSON settings file
+existence does not prove safe live writes. Version-gate settings and test runtime
+synchronization, per-app scope, reload, and restoration. Missing evidence means
+guided instructions, not hidden file edits.
+
+VRChat: recommend documented avatar count/distance/rank and graphics settings.
+Initial guided profiles; do not assume an external configuration API. No game
+injection or live-memory writes. Respect runtime/UI ownership of settings.
+
+Virtual Desktop: guided quality/bitrate/refresh/codec profiles and overlay entry.
+Read-only connection preflight. No invented command line, settings API, or
+headset configuration endpoint.
+
+Audio: initial inventory of endpoints and intended routing; protect participants.
+Optional explicit adapter later. Distinguish endpoint discovery from supported
+routing mutation; undocumented APIs need isolated compatibility handling.
+Do not replace existing audio tools merely to expand scope.
+
+Downloads/sync: pause selected jobs only through verified application interfaces.
+No blanket Windows service stopping or packet manipulation.
+
+Recording/overlays: identify optional applications and offer graceful close.
+Do not inject into the game or remove required runtime overlays blindly.
+
+10. ARCHITECTURE
+Recommended stack: C#, WPF, currently supported .NET LTS, JSON persistence,
+mainstream .NET tests, optional Ollama via HttpClient.
+Keep the existing stack if compatible; assess migration cost before changing it.
+
+Logical modules:
+- Presentation: dashboard, loadouts, intent, plan review, session, history.
+- Core: policy models, planning, ownership, conflicts, execution state machine.
+- Discovery/telemetry: collectors and provenance; no write authority.
+- Integrations: Process Lasso and later capability-specific adapters.
+- Persistence: versioned app documents, exact snapshots, durable journals.
+- Optional elevated helper: short-lived typed operations only when necessary.
+
+Avoid a plugin marketplace, reflection-heavy framework, or many tiny projects.
+A few solution projects and narrowly scoped interfaces are sufficient.
+
+Adapter contract concepts:
+Discover capabilities -> read state -> contribute typed planned operations ->
+validate -> apply -> verify -> restore/reconcile.
+Adapters expose support status, evidence, reversibility, permission needs,
+restart requirements, and dependencies. Keep app-specific serialization local.
+
+Capability states: supported-tested, read-only, guided-only, unsupported,
+unverified, unavailable. Include version/context evidence.
+
+11. DOMAIN MODEL
+HardwareInventory; ApplicationIdentity; ProcessObservation; WorkloadDefinition;
+Loadout; UserIntent; AdapterCapabilities; BaselineSnapshot; CompiledPlan;
+PlannedOperation; ApprovalRecord; SessionRecord; TransactionJournal;
+VerificationResult; RestoreConflict; ExperimentRun; DiagnosticReport.
+
+PlannedOperation fields:
+operationId, adapterId, targetIdentity, before/desired state, rationale,
+policy/evidence origin, support status, reversibility, permission needs,
+expected verification, dependency IDs, timeout, approval scope.
+Use typed internal operations, not arbitrary maps passed into an executor.
+
+Portable loadouts use logical roles and confirmed local bindings separately.
+SchemaVersion is mandatory. Unknown future versions fail safely.
+Do not embed local paths or secrets in public preset templates.
+
+12. NATURAL LANGUAGE
+Deterministic preset matching first. Optional Ollama selects bounded intents.
+No LLM is required for diagnostics, presets, planning, apply, or restoration.
+
+Example bounded intent:
+{"schemaVersion":1,"loadoutId":"vrchat-social",
+ "objective":"frame-time-consistency","sessionMode":"temporary",
+ "cleanupPolicy":"ask","powerPreference":"performance",
+ "requestedApplications":["VRChat","SteamVR"]}
+
+Schema-validate enum values, lengths, object shape, and unknown fields.
+Model output cannot contain commands, INI text, CPU masks, privileged targets,
+registry paths, unrestricted selectors, or termination authorizations.
+The deterministic compiler resolves actual identities and policies.
+Use model output as untrusted data; app names/log contents are not instructions.
+Timeout, cancellation, bounded responses, no automatic model downloads.
+Default local endpoint; remote providers require explicit configuration.
+Do not keep inference GPU-resident solely for monitoring; unload only through
+supported user-configured behavior and never unload someone else's model job.
+
+13. SESSION STATE MACHINE
+Idle -> Discovering -> Observing -> Planning -> AwaitingApproval -> Preparing ->
+Active -> Restoring -> Completed.
+Alternative states: Cancelled, Failed, PartiallyApplied, RecoveryRequired.
+Persist operation-level results and session progression.
+Cancellation does not erase completed side effects; reconcile or compensate.
+Concurrent sessions are prohibited initially; overlapping triggers select one
+session through explicit precedence. Manual selection wins.
+No continuous profile thrashing: debounce, minimum dwell, exit grace period.
+Unattended actions are restricted to previously approved exact policy boundaries.
+No surprise background UAC prompts.
+
+14. TRANSACTIONS AND RESTORATION
+Cross-adapter actions are a saga, NOT one atomic filesystem transaction.
+Preview the complete dependency graph and irreversible actions before approval.
+Validate all preconditions feasible before mutation. Execute deterministic order.
+For each operation journal intent durably before the action, then record result.
+On failure, compensate reversible owned changes in reverse dependency order.
+Do not compensate by forcefully closing a user-owned application.
+
+For configuration files: baseline bytes/hash -> approval -> transaction lock ->
+re-read/hash check -> exact backup -> minimal patch -> tested replacement ->
+persistence verification -> reload verification -> effective-state observation.
+An app lock does not prevent third-party writers; recheck and disclose races.
+Preserve required ACLs/attributes. No blanket governor restart to mask uncertainty.
+
+Three-way restore compares baseline, app-written state, and current state.
+Restore only values still matching app-written state. External edits become
+conflicts. Whole-file restore is a separate explicitly approved recovery action.
+
+Reversibility classes:
+- Fully compensable under verified preconditions.
+- Conditionally compensable (external state may change).
+- Relaunch-only; exact user state cannot be restored.
+- Irreversible/destructive; not part of default unattended automation.
+
+Approval must bind operation targets/content; material plan changes invalidate
+approval. PID reuse, changed config hashes, path changes, or different capabilities
+require revalidation and potentially fresh approval.
+
+15. SECURITY, PRIVACY, AND OVERHEAD
+UI, collectors, and LLM run unprivileged. Elevate only a typed narrowly scoped
+helper if a demonstrated operation requires it. Authenticate IPC and initiating
+user; prevent arbitrary commands/paths and insecure temporary-file handoffs.
+Revalidate approved target and configuration identity across privilege boundary.
+
+Local-first data. No raw prompt persistence by default. Redact user paths,
+command lines, document titles, tokens, and unnecessary identifiers in exports.
+Configuration snapshots can be sensitive; secure local access and retention.
+Use bounded logs and user-controlled retention. Do not promise redaction is
+perfect; preview exported diagnostics.
+
+Measure app CPU/memory/IO overhead on supported machines. Performance budgets
+must be tested and documented, not fabricated. Avoid busy loops, heavy sampling,
+continuous inference, and overlapping observers.
+
+16. UI OUTLINE
+Dashboard: session state, detected workload, telemetry, unknowns, compatibility.
+Diagnostics: rolling process table, grouped apps, possible contention, context.
+Cleanup: protected apps, optional candidates, exact action approval.
+Loadouts: built-ins, clone/edit, local identity bindings, portable policy.
+Prompt: interpretation and unresolved intent; no automatic execution.
+Plan review: before/after, rationale, permissions, risk, reversibility, conflicts.
+Session: per-operation progress, measurements, stop/restore.
+History/recovery: journals, partial failures, restore conflicts, experiments.
+Settings: integrations, confirmed paths, telemetry, provider, retention, triggers.
+Guided setup: unsupported settings with documented steps and completion tracking.
+
+17. DATA MIGRATION AND REFACTORING
+Inventory current source, tests, presets, persistence, UI, and live adapters.
+Tag/record baseline commit where repository workflow permits; never reset user
+changes. Build and test before edits; distinguish pre-existing failures.
+Map existing features to keep, extract, improve, defer, or retire.
+Preserve CLI/UI entry points when practical. Working name does not force renames.
+Version migrations must be idempotent, backed up, and tested. Never migrate the
+external Process Lasso file merely to migrate application-owned data.
+Keep old loadouts usable or report precise unsupported fields. Retain old data
+until migration success is verified. No destructive automatic conversion.
+
+18. IMPLEMENTATION PHASES
+P0 Repository audit: baseline results, feature inventory, migration plan,
+compatibility matrix, architecture decision notes.
+P1 Read-only foundation: inventory, rolling CPU/memory observations, workload
+participants, existing Process Lasso view, dry-run loadouts, dashboard.
+P2 Cleanup/launch: application grouping, exact-target approval, graceful close,
+protected roles, launch readiness and ownership, persistence/history.
+P3 Transactions: extract/retain verified Process Lasso adapter, versioned journal,
+lossless edits, verification, three-way restore, interruption tests.
+P4 Expanded session coordination: single-owner power adapter, full preparation
+plan, session lifecycle, guided VRChat/SteamVR/Virtual Desktop recommendations.
+P5 Optional natural language: deterministic intents, Ollama schema, bounded plans.
+P6 Opt-in triggers: precedence, debounce, exit grace, safe unattended boundaries.
+P7 Measurements/release: controlled comparison reports, verified external
+measurement import, self-contained Windows package, docs and diagnostics export.
+P8 Later adapters: supported app pauses, audio routing, tested VR configuration,
+hardware-aware CPU Sets experiments.
+
+Prioritize reliable read-only diagnosis over a broad collection of write adapters.
+Ship guided capabilities rather than pretend unsupported automation exists.
+
+19. TEST STRATEGY
+Unit: policies, identity validation, state machine, ranking, CPU normalization,
+intent validation, approval invalidation, migration, capability gating.
+Fixture: lossless INI round trip, encoding, unknown keys, duplicate keys,
+rule order, real codec exports tagged by version, restore conflicts.
+Simulation: exiting/reused PID, permissions denied, provider failure, external
+config edits, partial action, cancellation, power ownership conflict, reboot,
+incomplete journal, launch timeout, unsaved-work close refusal.
+Integration: opt-in isolated Windows tests; no default live Process Lasso changes.
+UI: plan/approval, protected process, unsupported adapters, partial failure,
+manual trigger override, keyboard navigation and clear statuses.
+Performance: collector overhead, history size, inference inactivity during play.
+No fabricated benchmark/test outcomes; report commands and observed results.
+
+20. RELEASE ACCEPTANCE
+- Existing supported features are preserved or migrations documented.
+- Build and automated tests pass, or precise pre-existing limitations are stated.
+- Dry-run and read-only modes work with no Process Lasso installation.
+- Live Process Lasso writes are version-verified and approval-gated.
+- Optional cleanup cannot select protected participants automatically.
+- Targets are revalidated immediately before mutations.
+- Partial multi-adapter failures are recoverable and honestly displayed.
+- Newer user changes survive restoration.
+- LLM/provider absence does not disable core functions.
+- No invented APIs, unsupported schema keys, or unsupported performance claims.
+- Install/run/recovery instructions and compatibility limits are documented.
+
+21. SOURCE AND VERIFICATION NOTES
+Primary references carried forward from the prior research:
+https://bitsum.com/apps/process-lasso/docs/reference/ini-config/
+https://bitsum.com/processlasso-docs/command-line-arguments/
+https://bitsum.com/automation/
+https://bitsum.com/product-update/process-lasso-v15-1-selective-rule-import-export-and-copy-paste/
+https://docs.vrchat.com/docs/vrchat-configuration-window
+https://wiki.vrchat.com/wiki/Settings
+https://www.vrdesktop.net/
+https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.closemainwindow
+https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.kill
+https://devblogs.microsoft.com/directx/gpus-in-the-task-manager/
+https://learn.microsoft.com/en-us/troubleshoot/windows-client/performance/gpu-process-memory-counters-report-wrong-value
+https://developer.valvesoftware.com/wiki/SteamVR/steamvr.vrsettings
+https://docs.ollama.com/capabilities/structured-outputs
+https://github.com/GameTechDev/PresentMon
+
+URLs provide research context, not a promise of stable automation interfaces.
+This is a project specification, not a machine-specific performance diagnosis.

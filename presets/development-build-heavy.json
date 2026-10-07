@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "development-build-heavy",
+  "displayName": "Build-heavy development",
+  "summary": "Wait for an explicit build worker. Do not throttle compilers automatically.",
+  "objective": "throughput",
+  "sessionMode": "temporary",
+  "powerPreference": "balanced",
+  "backgroundPolicy": "explicit-workers-only",
+  "offerPerformanceMode": false,
+  "offerEfficiencyModeOff": false,
+  "priorityPolicy": "unchanged",
+  "cpuPlacementPolicy": "unchanged",
+  "proBalancePolicy": "preserve",
+  "requiresExplicitWorkers": true,
+  "participantRoles": [],
+  "notes": [
+    "Name the build worker and give a reason before any ProBalance exclusion is even previewed as a future write.",
+    "python.exe, node.exe, and editor processes are not blanket targets."
+  ]
+}

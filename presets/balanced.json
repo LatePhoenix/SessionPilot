@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "balanced",
+  "displayName": "Balanced",
+  "summary": "Keep the current Process Lasso configuration. This is a preservation policy, not a measured tune.",
+  "objective": "restore",
+  "sessionMode": "temporary",
+  "powerPreference": "balanced",
+  "backgroundPolicy": "preserve",
+  "offerPerformanceMode": false,
+  "offerEfficiencyModeOff": false,
+  "priorityPolicy": "unchanged",
+  "cpuPlacementPolicy": "unchanged",
+  "proBalancePolicy": "preserve",
+  "requiresExplicitWorkers": false,
+  "participantRoles": [],
+  "notes": [
+    "Existing ProBalance settings stay as they are.",
+    "Priority, affinity, CPU Sets, and I/O priority stay unchanged."
+  ]
+}

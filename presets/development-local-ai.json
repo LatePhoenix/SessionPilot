@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "development-local-ai",
+  "displayName": "Local AI development",
+  "summary": "Keep local model runtimes on the existing configuration until a process is confirmed.",
+  "objective": "throughput",
+  "sessionMode": "temporary",
+  "powerPreference": "balanced",
+  "backgroundPolicy": "explicit-workers-only",
+  "offerPerformanceMode": false,
+  "offerEfficiencyModeOff": false,
+  "priorityPolicy": "unchanged",
+  "cpuPlacementPolicy": "unchanged",
+  "proBalancePolicy": "preserve",
+  "requiresExplicitWorkers": true,
+  "participantRoles": [],
+  "notes": [
+    "A generic Python or Node process is not assumed to be the model runtime.",
+    "No RAM cleaning, priority boost, or CPU mask is proposed."
+  ]
+}

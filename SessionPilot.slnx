@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SessionPilot.App/SessionPilot.App.csproj" />
+    <Project Path="src/SessionPilot.Core/SessionPilot.Core.csproj" />
+    <Project Path="src/SessionPilot.Infrastructure/SessionPilot.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SessionPilot.Tests/SessionPilot.Tests.csproj" />
+  </Folder>
+</Solution>

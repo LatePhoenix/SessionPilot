@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "background-batch",
+  "displayName": "Background batch",
+  "summary": "Require an explicit worker before any batch policy is considered.",
+  "objective": "throughput",
+  "sessionMode": "temporary",
+  "powerPreference": "balanced",
+  "backgroundPolicy": "explicit-workers-only",
+  "offerPerformanceMode": false,
+  "offerEfficiencyModeOff": false,
+  "priorityPolicy": "unchanged",
+  "cpuPlacementPolicy": "unchanged",
+  "proBalancePolicy": "preserve",
+  "requiresExplicitWorkers": true,
+  "participantRoles": [],
+  "notes": [
+    "Batch work is not allowed to target audio, security, compositor, or system processes.",
+    "ProBalance remains the restraint mechanism."
+  ]
+}

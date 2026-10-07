@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "media-playback",
+  "displayName": "Media playback",
+  "summary": "Use a balanced policy for playback. Keep-awake and priority changes are not implied.",
+  "objective": "quiet-balanced",
+  "sessionMode": "temporary",
+  "powerPreference": "balanced",
+  "backgroundPolicy": "preserve",
+  "offerPerformanceMode": false,
+  "offerEfficiencyModeOff": false,
+  "priorityPolicy": "unchanged",
+  "cpuPlacementPolicy": "unchanged",
+  "proBalancePolicy": "preserve",
+  "requiresExplicitWorkers": false,
+  "participantRoles": [],
+  "notes": [
+    "Audio and playback processes are not throttled by a broad rule.",
+    "Performance effect is not measured."
+  ]
+}

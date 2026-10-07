@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "vrchat-steamvr",
+  "displayName": "VRChat via SteamVR",
+  "summary": "Favor frame-time consistency for a confirmed VRChat and SteamVR session. This requests a policy; it does not claim higher frame rates.",
+  "objective": "frame-time-consistency",
+  "sessionMode": "temporary",
+  "powerPreference": "performance",
+  "backgroundPolicy": "preserve",
+  "offerPerformanceMode": true,
+  "offerEfficiencyModeOff": true,
+  "priorityPolicy": "unchanged",
+  "cpuPlacementPolicy": "unchanged",
+  "proBalancePolicy": "preserve",
+  "requiresExplicitWorkers": false,
+  "participantRoles": ["game", "compositor", "streaming", "audio", "companion"],
+  "notes": [
+    "Confirm the game, compositor, stream, audio path, and companion tools before treating them as participants.",
+    "Helper executable names are not hard-coded as authoritative.",
+    "ProBalance is preserved. Priority and CPU placement stay unchanged."
+  ]
+}

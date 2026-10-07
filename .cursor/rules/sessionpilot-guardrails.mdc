@@ -1,0 +1,14 @@
+---
+description: SessionPilot product boundaries for Process Lasso, presets, and language models
+alwaysApply: true
+---
+
+# SessionPilot guardrails
+
+The product name is SessionPilot. Process Lasso is the integrated product; keep names such as `ProcessLassoInstallation` when they refer to that product.
+
+- Do not invent INI keys, CLI commands, JSON import endpoints, registry locations, SteamVR keys, or reload behavior.
+- Do not write, restart, install, or modify live Process Lasso, Windows power plans, VR settings, services, or running applications.
+- Do not author shell commands, process arguments, or configuration text from a model. Presets, diagnostics, planning, and restoration work with the language provider unset.
+- Unsupported capabilities stay visible guided workflows. Performance effect stays "not measured" until a real measurement exists.
+- SessionPilot is not affiliated with Bitsum and does not bundle Process Lasso.
