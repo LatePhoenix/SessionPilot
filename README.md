@@ -30,7 +30,20 @@ The report redacts filesystem paths. It does not treat the first `prolasso.ini` 
 dotnet publish src/SessionPilot.App/SessionPilot.App.csproj -c Release -r win-x64 --self-contained true -o publish/win-x64
 ```
 
-That folder is a local build. It is not an installer and it does not change Process Lasso. The `publish/` directory is gitignored.
+That folder is a local build. It does not change Process Lasso. The `publish/` directory is gitignored.
+
+## Installer
+
+Per-user MSI. It does not ask for administrator rights. It installs SessionPilot under the per-user Programs folder, adds a Start Menu shortcut named SessionPilot, and registers an uninstall entry in Settings. It does not install or configure Process Lasso.
+
+The first page, before any files are copied, states that SessionPilot is not associated with Bitsum or Process Lasso, and that Process Lasso is required and is not installed by this package.
+
+```powershell
+dotnet tool restore
+dotnet build installer/SessionPilot.Installer/SessionPilot.Installer.wixproj -c Release
+```
+
+The MSI is written to `artifacts/installer/SessionPilot.msi`. That directory is gitignored. The build publishes a self-contained win-x64 app into `artifacts/publish/win-x64/` and packs that folder. The package is unsigned.
 
 ## What this build will not do
 

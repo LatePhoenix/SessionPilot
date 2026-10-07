@@ -6,5 +6,7 @@ obj/
 TestResults/
 publish/
 artifacts/
+*.msi
+*.wixpdb
 *.tmp
 .sessionpilot-*.tmp
