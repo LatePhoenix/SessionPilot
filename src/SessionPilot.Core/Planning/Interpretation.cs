@@ -215,7 +215,8 @@ public static class DeterministicInterpreter
         var words = new Dictionary<string, Regex>(tokens.Length, StringComparer.Ordinal);
         foreach (var token in tokens)
         {
-            words[token] = new Regex(@"\b" + Regex.Escape(token) + @"\b", RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            // An optional "s" or "es" keeps plurals such as "games" and "diagnostics" matching.
+            words[token] = new Regex(@"\b" + Regex.Escape(token) + @"(?:e?s)?\b", RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.IgnoreCase);
         }
 
         return words;

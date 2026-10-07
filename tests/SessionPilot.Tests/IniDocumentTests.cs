@@ -113,6 +113,15 @@ public class IniDocumentTests
         Assert.Equal("one", document.Find("Custom", "Alpha").Line!.Value);
     }
 
+    [Fact]
+    public void Apply_RejectsALeadingSemicolon_ThatTheKeptSpacingTurnsIntoAComment()
+    {
+        var document = IniDocument.Parse("[Custom]\r\nAlpha = one\r\n");
+        var edited = document.Apply([new IniEdit { Section = "Custom", Key = "Alpha", Value = ";x" }]);
+        Assert.False(edited.Succeeded);
+        Assert.Contains("inline comment", edited.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static byte[] EncodeUtf16(string text)
     {
         var body = Encoding.Unicode.GetBytes(text);

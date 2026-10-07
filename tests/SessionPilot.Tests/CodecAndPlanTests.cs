@@ -142,6 +142,9 @@ public class CodecAndPlanTests
     [InlineData("running a local AI model", "development-local-ai")]
     [InlineData("watching a movie", "media-playback")]
     [InlineData("restore the balanced desktop", "balanced")]
+    [InlineData("playing games tonight", "desktop-gaming")]
+    [InlineData("nightly builds of the solution", "development-build-heavy")]
+    [InlineData("run VRChat diagnostics", "vrchat-diagnostic")]
     public void DeterministicPhrases_MatchKnownLoadouts(string text, string loadoutId)
     {
         var interpretation = DeterministicInterpreter.Interpret(text);
