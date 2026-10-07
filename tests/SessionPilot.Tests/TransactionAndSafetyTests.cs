@@ -135,6 +135,77 @@ public class TransactionAndSafetyTests
     }
 
     [Fact]
+    public void InvalidTargetPath_IsRefused_AndCreatesNothing()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "sessionpilot-invalid-" + Guid.NewGuid().ToString("n"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var journal = Path.Combine(root, "journals");
+            var result = new TransactionCoordinator().Apply(new ApplyRequest
+            {
+                TargetPath = Path.Combine(root, "config.ini") + "\0",
+                ExpectedBaselineHash = "abc",
+                Approved = true,
+                JournalDirectory = journal,
+                Edits = [new IniEdit { Section = "Custom", Key = "Alpha", Value = "two" }]
+            });
+            Assert.Equal("refused", result.Status);
+            Assert.Equal("The target path is not valid.", result.Message);
+            Assert.False(Directory.Exists(journal));
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void UnapprovedRequest_DoesNotCreateTheJournalDirectory()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "sessionpilot-unapproved-" + Guid.NewGuid().ToString("n"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var target = Path.Combine(root, "config.ini");
+            File.WriteAllText(target, "[Custom]\r\nAlpha=one\r\n");
+            var journal = Path.Combine(root, "journals");
+            var result = new TransactionCoordinator().Apply(new ApplyRequest
+            {
+                TargetPath = target,
+                ExpectedBaselineHash = ContentHashing.Sha256(File.ReadAllBytes(target)),
+                Approved = false,
+                JournalDirectory = journal,
+                Edits = [new IniEdit { Section = "Custom", Key = "Alpha", Value = "two" }]
+            });
+            Assert.Equal("refused", result.Status);
+            Assert.False(Directory.Exists(journal));
+            Assert.Contains("Alpha=one", File.ReadAllText(target), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void MalformedLiveCandidate_DoesNotThrow()
+    {
+        using var dir = new TempWorkspace();
+        var target = dir.Write("config.ini", "[Custom]\r\nAlpha=one\r\n");
+        var result = new TransactionCoordinator().Apply(new ApplyRequest
+        {
+            TargetPath = target,
+            ExpectedBaselineHash = ContentHashing.Sha256(File.ReadAllBytes(target)),
+            Approved = true,
+            JournalDirectory = dir.Journal,
+            LiveCandidatePaths = ["bad\0path"],
+            Edits = [new IniEdit { Section = "Custom", Key = "Alpha", Value = "two" }]
+        });
+        Assert.Equal("completed-isolated", result.Status);
+    }
+
+    [Fact]
     public async Task ModelOutput_WithAShellField_IsRejected()
     {
         var catalog = LoadoutCatalog.Load(Path.Combine(AppContext.BaseDirectory, "presets"));

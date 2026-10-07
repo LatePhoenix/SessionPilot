@@ -8,18 +8,58 @@ namespace SessionPilot.App;
 
 public partial class App : Application
 {
+    public App()
+    {
+        DispatcherUnhandledException += (_, args) =>
+        {
+            TryShow(args.Exception);
+            args.Handled = true;
+        };
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            args.SetObserved();
+            TryShow(args.Exception);
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception exception)
+            {
+                TryShow(exception);
+            }
+        };
+    }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         if (e.Args.Any(argument => string.Equals(argument, "--check", StringComparison.OrdinalIgnoreCase)))
         {
-            var report = CheckReport.Format(LiveDiscovery.CheckOnce());
-            ParentConsole.Write(report);
-            Shutdown(0);
+            try
+            {
+                ParentConsole.Write(CheckReport.Format(LiveDiscovery.CheckOnce()));
+                Shutdown(0);
+            }
+            catch (Exception exception)
+            {
+                ParentConsole.Write(FailureText.ForCheck(exception.Message) + Environment.NewLine);
+                Shutdown(1);
+            }
+
             return;
         }
 
         new MainWindow().Show();
+    }
+
+    private static void TryShow(Exception exception)
+    {
+        try
+        {
+            MessageBox.Show(FailureText.ForDialog(exception.Message));
+        }
+        catch (Exception)
+        {
+        }
     }
 }
 

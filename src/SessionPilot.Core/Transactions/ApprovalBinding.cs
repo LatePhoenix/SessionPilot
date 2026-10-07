@@ -23,6 +23,25 @@ public static class ApprovalBinding
         string.Equals(approvedConfigHash, configHash, StringComparison.OrdinalIgnoreCase);
 }
 
+public static class IsolatedCopyHash
+{
+    public const string UnreadableMessage = "The isolated copy could not be read. Nothing was written.";
+
+    public static bool TryRead(string path, out string hash)
+    {
+        try
+        {
+            hash = ContentHashing.Sha256(File.ReadAllBytes(path));
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            hash = "";
+            return false;
+        }
+    }
+}
+
 public static class StartupRecovery
 {
     public static IReadOnlyList<string> DescribeIncomplete(string directory)
@@ -32,12 +51,22 @@ public static class StartupRecovery
             return ["No journal directory. Nothing was rolled back."];
         }
 
-        var journals = JournalRecovery.FindIncomplete(directory);
-        if (journals.Count == 0)
+        var scan = JournalRecovery.Scan(directory);
+        var lines = new List<string>();
+        if (scan.Incomplete.Count == 0)
         {
-            return ["No incomplete journal. Nothing was rolled back."];
+            lines.Add("No incomplete journal. Nothing was rolled back.");
+        }
+        else
+        {
+            lines.AddRange(scan.Incomplete.Select(journal => CheckReport.Redact(JournalRecovery.Describe(journal) + " Nothing was rolled back.")));
         }
 
-        return journals.Select(journal => CheckReport.Redact(JournalRecovery.Describe(journal) + " Nothing was rolled back.")).ToList();
+        foreach (var name in scan.UnreadableFileNames)
+        {
+            lines.Add(name + " It was not opened or rolled back.");
+        }
+
+        return lines;
     }
 }

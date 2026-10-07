@@ -53,16 +53,22 @@ public sealed class TransactionCoordinator
     public ApplyTransaction Apply(ApplyRequest request)
     {
         var id = Guid.NewGuid().ToString("n");
-        Directory.CreateDirectory(request.JournalDirectory);
         if (!request.Approved)
         {
             return Refuse(id, request.TargetPath, "The plan was not approved.");
         }
 
-        if (IsLivePath(request) && !LiveApplyPolicy.Enabled)
+        if (!TryNormalize(request.TargetPath, out var targetFullPath))
+        {
+            return Refuse(id, request.TargetPath, "The target path is not valid.");
+        }
+
+        if (IsLivePath(request, targetFullPath) && !LiveApplyPolicy.Enabled)
         {
             return Refuse(id, request.TargetPath, LiveApplyPolicy.Reason);
         }
+
+        Directory.CreateDirectory(request.JournalDirectory);
 
         if (request.Edits.Count == 0)
         {
@@ -158,8 +164,24 @@ public sealed class TransactionCoordinator
 
     public static string JournalPath(string directory, string id) => Path.Combine(directory, id + ".json");
 
-    private static bool IsLivePath(ApplyRequest request) =>
-        request.LiveCandidatePaths.Any(path => string.Equals(Path.GetFullPath(path), Path.GetFullPath(request.TargetPath), StringComparison.OrdinalIgnoreCase));
+    private static bool TryNormalize(string path, out string fullPath)
+    {
+        try
+        {
+            fullPath = Path.GetFullPath(path);
+            return true;
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or IOException)
+        {
+            fullPath = "";
+            return false;
+        }
+    }
+
+    private static bool IsLivePath(ApplyRequest request, string targetFullPath) =>
+        request.LiveCandidatePaths.Any(path =>
+            TryNormalize(path, out var candidate) &&
+            string.Equals(candidate, targetFullPath, StringComparison.OrdinalIgnoreCase));
 
     private static JournalRecord NewJournal(string id, ApplyRequest request) => new()
     {
@@ -252,26 +274,42 @@ public sealed class JournalRecord
     public DateTimeOffset UpdatedUtc { get; set; }
 }
 
+public sealed record JournalScan
+{
+    public IReadOnlyList<JournalRecord> Incomplete { get; init; } = [];
+    public IReadOnlyList<string> UnreadableFileNames { get; init; } = [];
+}
+
 public static class JournalRecovery
 {
-    public static IReadOnlyList<JournalRecord> FindIncomplete(string directory)
+    public static IReadOnlyList<JournalRecord> FindIncomplete(string directory) => Scan(directory).Incomplete;
+
+    public static JournalScan Scan(string directory)
     {
         if (!Directory.Exists(directory))
         {
-            return [];
+            return new JournalScan();
         }
 
-        var records = new List<JournalRecord>();
+        var incomplete = new List<JournalRecord>();
+        var unreadable = new List<string>();
         foreach (var path in Directory.EnumerateFiles(directory, "*.json"))
         {
-            var record = JsonSerializer.Deserialize<JournalRecord>(File.ReadAllText(path), TransactionCoordinator.Json);
-            if (record is not null && record.State is not ("Completed" or "Failed" or "Refused"))
+            try
             {
-                records.Add(record);
+                var record = JsonSerializer.Deserialize<JournalRecord>(File.ReadAllText(path), TransactionCoordinator.Json);
+                if (record is not null && record.State is not ("Completed" or "Failed" or "Refused"))
+                {
+                    incomplete.Add(record);
+                }
+            }
+            catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException)
+            {
+                unreadable.Add(Path.GetFileName(path));
             }
         }
 
-        return records;
+        return new JournalScan { Incomplete = incomplete, UnreadableFileNames = unreadable };
     }
 
     public static string Describe(JournalRecord journal)
@@ -281,7 +319,17 @@ public static class JournalRecovery
             return "The target file is missing. No rollback was applied.";
         }
 
-        var hash = ContentHashing.Sha256(File.ReadAllBytes(journal.TargetPath));
+        byte[] bytes;
+        try
+        {
+            bytes = File.ReadAllBytes(journal.TargetPath);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return "The target could not be read. No rollback was applied.";
+        }
+
+        var hash = ContentHashing.Sha256(bytes);
         if (journal.BaselineHash is not null && string.Equals(hash, journal.BaselineHash, StringComparison.OrdinalIgnoreCase))
         {
             return "The target still matches the baseline. Replacement does not appear to have landed. No rollback was applied.";

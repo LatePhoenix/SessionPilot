@@ -50,6 +50,11 @@ public partial class MainWindow : Window
         _catalog = LoadoutCatalog.Load(presetDirectory, AppPaths.LoadoutDirectory);
         LoadoutList.ItemsSource = _catalog.All.Select(loadout => loadout.DisplayName).ToList();
         DashboardBody.Text = DescribeInstallation(installation, hardware);
+        if (_catalog.LoadErrors.Count > 0)
+        {
+            DashboardBody.Text += Environment.NewLine + Environment.NewLine + "Skipped loadout files:" + Environment.NewLine +
+                                  string.Join(Environment.NewLine, _catalog.LoadErrors);
+        }
         GuidedBody.Text = string.Join(Environment.NewLine + Environment.NewLine, GuidedWorkflows.All.Select(workflow =>
             workflow.Title + " (" + workflow.Mode + ")" + Environment.NewLine +
             string.Join(Environment.NewLine, workflow.Steps.Select(step => "• " + step.Title + ": " + step.Instruction)) +
@@ -492,8 +497,17 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!IsolatedCopyHash.TryRead(path, out var approvedHash))
+        {
+            ApprovePlan.IsChecked = false;
+            _approvedPlanHash = null;
+            _approvedConfigHash = null;
+            ApplyResult.Text = IsolatedCopyHash.UnreadableMessage;
+            return;
+        }
+
         _approvedPlanHash = ApprovalBinding.HashPlan(_plan);
-        _approvedConfigHash = ContentHashing.Sha256(File.ReadAllBytes(path));
+        _approvedConfigHash = approvedHash;
         ApplyResult.Text = "Approval is bound to this plan and this file hash.";
     }
 
@@ -518,8 +532,16 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!IsolatedCopyHash.TryRead(path, out var configHash))
+        {
+            _approvedPlanHash = null;
+            _approvedConfigHash = null;
+            ApprovePlan.IsChecked = false;
+            ApplyResult.Text = IsolatedCopyHash.UnreadableMessage;
+            return;
+        }
+
         var planHash = ApprovalBinding.HashPlan(_plan);
-        var configHash = ContentHashing.Sha256(File.ReadAllBytes(path));
         if (!ApprovalBinding.StillValid(_approvedPlanHash, _approvedConfigHash, planHash, configHash))
         {
             _approvedPlanHash = null;
