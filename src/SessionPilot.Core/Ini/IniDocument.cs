@@ -339,7 +339,7 @@ public sealed class IniDocument
             return (TextEncoding.Utf16Le, false, System.Text.Encoding.Unicode.GetString(bytes));
         }
 
-        if (System.Text.Encoding.UTF8.GetCharCount(bytes) >= 0 && IsValidUtf8(bytes))
+        if (IsValidUtf8(bytes))
         {
             return (TextEncoding.Utf8, false, System.Text.Encoding.UTF8.GetString(bytes));
         }
