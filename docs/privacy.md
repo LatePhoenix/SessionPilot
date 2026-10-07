@@ -8,4 +8,4 @@ Ollama prompts are sent only to the loopback endpoint you invoke with the button
 
 Exports of a diagnostic are not produced automatically. If you copy the `--check` text, read it first. Redaction is a filter, not a guarantee that every sensitive string was recognized.
 
-Measurement notes stay on the machine for the life of the window. They are not a frame-rate history.
+Measurement notes and the recorded power owner stay on this machine in the SessionPilot data folder until you clear them. They are not a frame-rate history. Performance effect stays not-measured.

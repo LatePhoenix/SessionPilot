@@ -28,6 +28,38 @@ public class SessionLaunchTests
         Assert.False(session.TryApplyTrigger("vrchat-social", out var reason));
         Assert.Equal("vrchat-steamvr", session.ManualLoadoutId);
         Assert.Contains("manual", reason, StringComparison.OrdinalIgnoreCase);
+        session.ClearManualSelection();
+        Assert.Null(session.ManualLoadoutId);
+    }
+
+    [Fact]
+    public void NextPhase_ExplainsWhyContinueCannotMove()
+    {
+        var idle = new SessionCoordinator();
+        Assert.Null(idle.NextPhase(planCompiled: false, out var idleReason));
+        Assert.Equal("Press Begin to start a session.", idleReason);
+
+        var waiting = new SessionCoordinator();
+        Assert.True(waiting.TryTransition(SessionPhase.Discovering, out _));
+        Assert.True(waiting.TryTransition(SessionPhase.Observing, out _));
+        Assert.True(waiting.TryTransition(SessionPhase.Planning, out _));
+        Assert.True(waiting.TryTransition(SessionPhase.AwaitingApproval, out _));
+        Assert.Null(waiting.NextPhase(planCompiled: false, out var waitingReason));
+        Assert.Equal("Compile a plan before preparing.", waitingReason);
+        Assert.Equal(SessionPhase.Preparing, waiting.NextPhase(planCompiled: true, out _));
+
+        var finished = new SessionCoordinator();
+        foreach (var phase in new[]
+        {
+            SessionPhase.Discovering, SessionPhase.Observing, SessionPhase.Planning, SessionPhase.AwaitingApproval,
+            SessionPhase.Preparing, SessionPhase.Active, SessionPhase.Restoring, SessionPhase.Completed
+        })
+        {
+            Assert.True(finished.TryTransition(phase, out _));
+        }
+
+        Assert.Null(finished.NextPhase(planCompiled: true, out var finishedReason));
+        Assert.Equal("Press Begin to start again.", finishedReason);
     }
 
     [Fact]
