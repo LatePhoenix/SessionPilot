@@ -12,6 +12,7 @@ Usage:
     python tools/build-icon.py
 
 Writes src/SessionPilot.App/app.ico (16-256 px) and brand/icon-512.png.
+The 16 px frame is hand-placed pixel art (SMALL_16) rather than a shrunk copy.
 Needs Pillow and NumPy.
 """
 
@@ -145,7 +146,48 @@ def render() -> Image.Image:
     return out
 
 
+# Hand-placed 16 px version. Shrinking the full art leaves a smudge at this size, so this keeps
+# only the outer ring, the four ticks, the monitor, and the magenta screen and pointer.
+SMALL_16 = """
+.......cc.......
+.....cccccc.....
+...cc......cc...
+..c....mm....c..
+..c..........c..
+.c..cccccccc..c.
+.c..cmmmmmmc..c.
+cccccmmmmmmccccc
+cccccmmmmmmccccc
+.c..cmmmmmmc..c.
+.c..cccccccc..c.
+..c....cc....c..
+..c..cccccc..c..
+...cc......cc...
+.....cccccc.....
+.......cc.......
+""".split()
+
+
+def small16() -> Image.Image:
+    cyan = np.array([[ch == "c" for ch in row] for row in SMALL_16], np.float32)
+    magenta = np.array([[ch == "m" for ch in row] for row in SMALL_16], np.float32)
+    for y, x in ((5, 4), (5, 11), (10, 4), (10, 11)):                       # soften the bezel corners
+        cyan[y, x] = 0.55
+    background = tile(256).resize((16, 16), Image.LANCZOS)
+    out = background.copy()
+    for mask, color in ((cyan, CYAN), (magenta, MAGENTA)):
+        big = to_image(mask).resize((64, 64), Image.NEAREST)
+        glow = big.filter(ImageFilter.GaussianBlur(3)).resize((16, 16), Image.LANCZOS)
+        out = Image.alpha_composite(out, layer(to_alpha(glow) * 0.22, color))
+        out = Image.alpha_composite(out, layer(mask, color))
+    clip = np.minimum(np.asarray(out)[..., 3], np.asarray(background)[..., 3])
+    out.putalpha(Image.fromarray(clip.astype(np.uint8)))
+    return out
+
+
 def downscale(master: Image.Image, size: int) -> Image.Image:
+    if size == 16:
+        return small16()
     small = master.resize((size, size), Image.LANCZOS)
     if size <= 72:
         small = small.filter(ImageFilter.UnsharpMask(radius=1.0, percent=70, threshold=0))
