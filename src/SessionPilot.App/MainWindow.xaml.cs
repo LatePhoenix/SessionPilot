@@ -50,11 +50,21 @@ public partial class MainWindow : Window
         GuidedBody.Text = "Discovering…";
         LoadoutDetail.Text = "Discovering…";
         ShowPage(PageDashboard, NavDashboard, "Dashboard");
+
+        // Saved state is a small local file. Read it before the first await so a measurement or owner
+        // recorded while discovery runs is added to it instead of replacing it.
+        var state = AppStateStore.Load(AppPaths.StateFile, out var stateNote);
+        _powerOwner = AppStateStore.TryParseOwner(state.PowerOwner, out var owner) ? owner : PowerOwnerKind.Unset;
+        _measurements.Restore(state.Measurements);
+        ShowMeasurements();
+        PowerDecisionText.Text = _powerOwner == PowerOwnerKind.Unset
+            ? "No power owner is selected. Nothing was switched."
+            : "Owner " + _powerOwner + " is recorded. Nothing was switched.";
+
         var presetDirectory = Path.Combine(AppContext.BaseDirectory, "presets");
         var loadoutDirectory = AppPaths.LoadoutDirectory;
         var journalDirectory = AppPaths.JournalDirectory;
-        var stateFile = AppPaths.StateFile;
-        var discovered = await Task.Run(() => Discover(presetDirectory, loadoutDirectory, journalDirectory, stateFile));
+        var discovered = await Task.Run(() => Discover(presetDirectory, loadoutDirectory, journalDirectory));
         var listing = await PowerPlanReader.TryListAsync();
         if (!IsLoaded)
         {
@@ -64,9 +74,6 @@ public partial class MainWindow : Window
         _logicalProcessors = discovered.Hardware.Confidence == DiscoveryConfidence.None ? 0 : discovered.Hardware.LogicalProcessorCount;
         _catalog = discovered.Catalog;
         LoadoutList.ItemsSource = _catalog.All.Select(loadout => loadout.DisplayName).ToList();
-        _powerOwner = discovered.Owner;
-        _measurements.Restore(discovered.Measurements);
-        ShowMeasurements();
         DashboardBody.Text = DescribeInstallation(discovered.Installation, discovered.Hardware);
         if (_catalog.LoadErrors.Count > 0)
         {
@@ -81,33 +88,23 @@ public partial class MainWindow : Window
         ApplyStatus();
         DashboardBody.Text += Environment.NewLine + Environment.NewLine + "Startup recovery:" + Environment.NewLine +
                               string.Join(Environment.NewLine, discovered.Recovery);
-        if (discovered.StateNote is not null)
+        if (stateNote is not null)
         {
-            DashboardBody.Text += Environment.NewLine + discovered.StateNote;
+            DashboardBody.Text += Environment.NewLine + stateNote;
         }
 
         var plans = listing is null ? [] : PowerPlanParser.Parse(listing);
         PowerPlans.Text = plans.Count == 0
             ? "Power plans: unavailable. Nothing was switched."
             : "Installed plans (read-only): " + string.Join(", ", plans.Select(plan => plan.Name + (plan.Active ? " (active)" : "")));
-        PowerDecisionText.Text = _powerOwner == PowerOwnerKind.Unset
-            ? "No power owner is selected. Nothing was switched."
-            : "Owner " + _powerOwner + " is recorded. Nothing was switched.";
     }
 
-    private static ShellSnapshot Discover(string presetDirectory, string loadoutDirectory, string journalDirectory, string stateFile)
-    {
-        var state = AppStateStore.Load(stateFile, out var note);
-        var owner = AppStateStore.TryParseOwner(state.PowerOwner, out var parsed) ? parsed : PowerOwnerKind.Unset;
-        return new ShellSnapshot(
+    private static ShellSnapshot Discover(string presetDirectory, string loadoutDirectory, string journalDirectory) =>
+        new(
             LiveDiscovery.Installation(),
             LiveDiscovery.Hardware(),
             LoadoutCatalog.Load(presetDirectory, loadoutDirectory),
-            StartupRecovery.DescribeIncomplete(journalDirectory),
-            owner,
-            state.Measurements,
-            note);
-    }
+            StartupRecovery.DescribeIncomplete(journalDirectory));
 
     private static string DescribeInstallation(ProcessLassoInstallation installation, HardwareInventory hardware)
     {
@@ -614,9 +611,6 @@ public partial class MainWindow : Window
         ProcessLassoInstallation Installation,
         HardwareInventory Hardware,
         LoadoutCatalog Catalog,
-        IReadOnlyList<string> Recovery,
-        PowerOwnerKind Owner,
-        IReadOnlyList<MeasurementRun> Measurements,
-        string? StateNote);
+        IReadOnlyList<string> Recovery);
 }
 

@@ -266,6 +266,28 @@ public class DiagnosticsAndPresetTests
     }
 
     [Fact]
+    public void LockedUserLoadout_IsSkipped()
+    {
+        var user = NewUserDirectory();
+        try
+        {
+            var path = Path.Combine(user, "locked.json");
+            File.WriteAllText(path, LoadoutJson("custom", "unchanged"));
+            using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                var catalog = LoadoutCatalog.Load(Presets(), user);
+                Assert.True(catalog.TryGet("balanced", out _));
+                Assert.False(catalog.TryGet("custom", out _));
+                Assert.Equal("locked.json: The file could not be read.", Assert.Single(catalog.LoadErrors));
+            }
+        }
+        finally
+        {
+            Directory.Delete(user, true);
+        }
+    }
+
+    [Fact]
     public void UserLoadout_WithAHighPriorityPolicy_IsSkipped()
     {
         var user = NewUserDirectory();

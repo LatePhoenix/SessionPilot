@@ -43,6 +43,11 @@ public sealed class LoadoutCatalog
                     errors.Add(Path.GetFileName(path) + ": " + exception.Message);
                     continue;
                 }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    errors.Add(Path.GetFileName(path) + ": The file could not be read.");
+                    continue;
+                }
 
                 if (!ids.Add(loadout.Id))
                 {

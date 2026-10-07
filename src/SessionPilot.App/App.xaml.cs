@@ -18,7 +18,9 @@ public partial class App : Application
         TaskScheduler.UnobservedTaskException += (_, args) =>
         {
             args.SetObserved();
-            TryShow(args.Exception);
+            // This runs on the finalizer thread. Show the dialog on the UI thread so finalization is not blocked.
+            var exception = args.Exception;
+            Dispatcher.InvokeAsync(() => TryShow(exception));
         };
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
         {

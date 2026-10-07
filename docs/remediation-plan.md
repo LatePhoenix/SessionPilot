@@ -302,7 +302,13 @@ Complete.
 
 ## New findings
 
-(none yet)
+Follow-up audit of the fixes, 2026-10-07. All fixed on `fix/audit-followups`.
+
+- [x] Whole-word matching dropped plurals ("games", "builds", "diagnostics"). Words now allow an optional `s` or `es`.
+- [x] A measurement or power owner recorded during async startup could replace `state.json`. Saved state now loads before the first await.
+- [x] `UnobservedTaskException` showed a dialog on the finalizer thread. It now shows on the UI thread.
+- [x] The inline-comment check ran before spacing was restored, so `;x` after `= ` passed. It now checks the written text.
+- [x] A locked or unreadable user loadout stopped discovery. It is now skipped and listed like other load errors.
 
 ## Blockers
 

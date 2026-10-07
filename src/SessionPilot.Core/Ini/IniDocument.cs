@@ -110,11 +110,6 @@ public sealed class IniDocument
                 return IniEditResult.Rejected($"Value for [{edit.Section}] {edit.Key} cannot be represented in the file's {Encoding} encoding.");
             }
 
-            if (HasInlineComment(edit.Value))
-            {
-                return IniEditResult.Rejected($"[{edit.Section}] {edit.Key} new value would read as an inline comment. The edit was refused.");
-            }
-
             var lookup = Find(edit.Section, edit.Key);
             if (lookup.Status == IniLookupStatus.Missing)
             {
@@ -130,6 +125,12 @@ public sealed class IniDocument
             if (HasInlineComment(line.Value))
             {
                 return IniEditResult.Rejected($"[{edit.Section}] {edit.Key} has an inline comment. The edit was refused.");
+            }
+
+            // Check the text as it will be written, with the original spacing restored, so ";x" after "= " is caught.
+            if (HasInlineComment(PreserveSpacing(line.Value, edit.Value)))
+            {
+                return IniEditResult.Rejected($"[{edit.Section}] {edit.Key} new value would read as an inline comment. The edit was refused.");
             }
 
             resolved.Add((line, edit));
