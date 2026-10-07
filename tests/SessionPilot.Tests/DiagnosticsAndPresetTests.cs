@@ -201,4 +201,125 @@ public class DiagnosticsAndPresetTests
         Assert.DoesNotContain("secret.ini", report, StringComparison.Ordinal);
         Assert.False(LiveApplyPolicy.Enabled);
     }
+
+    [Fact]
+    public void FailureText_RedactsTheDialog_AndKeepsTheCheckOnOneLine()
+    {
+        var dialog = FailureText.ForDialog(@"Cannot read C:\Users\someone\secret.ini");
+        Assert.Contains("[path]", dialog, StringComparison.Ordinal);
+        Assert.DoesNotContain("someone", dialog, StringComparison.Ordinal);
+        Assert.EndsWith("Nothing was written.", dialog, StringComparison.Ordinal);
+
+        var line = FailureText.ForCheck("failed\r\nC:\\Users\\someone\\secret.ini");
+        Assert.DoesNotContain("\n", line, StringComparison.Ordinal);
+        Assert.DoesNotContain("\r", line, StringComparison.Ordinal);
+        Assert.DoesNotContain("someone", line, StringComparison.Ordinal);
+        Assert.Contains("[path]", line, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void InvalidUserLoadoutJson_IsSkipped()
+    {
+        var user = NewUserDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(user, "broken.json"), "{");
+            var catalog = LoadoutCatalog.Load(Presets(), user);
+            Assert.True(catalog.TryGet("balanced", out _));
+            Assert.Equal("broken.json: The file is not valid JSON.", Assert.Single(catalog.LoadErrors));
+            Assert.DoesNotContain(catalog.LoadErrors, error => error.Contains(user, StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            Directory.Delete(user, true);
+        }
+    }
+
+    [Fact]
+    public void UserLoadout_WithAHighPriorityPolicy_IsSkipped()
+    {
+        var user = NewUserDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(user, "custom.json"), LoadoutJson("custom", "high"));
+            var catalog = LoadoutCatalog.Load(Presets(), user);
+            Assert.True(catalog.TryGet("balanced", out _));
+            Assert.False(catalog.TryGet("custom", out _));
+            var error = Assert.Single(catalog.LoadErrors);
+            Assert.StartsWith("custom.json: ", error, StringComparison.Ordinal);
+            Assert.Contains("priorityPolicy", error, StringComparison.Ordinal);
+            Assert.DoesNotContain(user, error, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.Delete(user, true);
+        }
+    }
+
+    [Fact]
+    public void UserLoadout_ThatCollidesWithBalanced_IsSkipped()
+    {
+        var user = NewUserDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(user, "copy.json"), LoadoutJson("balanced", "unchanged"));
+            var catalog = LoadoutCatalog.Load(Presets(), user);
+            Assert.True(catalog.TryGet("balanced", out var balanced));
+            Assert.True(balanced.BuiltIn);
+            var error = Assert.Single(catalog.LoadErrors);
+            Assert.StartsWith("copy.json: ", error, StringComparison.Ordinal);
+            Assert.Contains("collides with an existing id", error, StringComparison.Ordinal);
+            Assert.DoesNotContain(user, error, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.Delete(user, true);
+        }
+    }
+
+    [Fact]
+    public void BrokenBuiltInLoadout_StillThrows()
+    {
+        var builtIn = NewUserDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(builtIn, "balanced.json"), "{");
+            Assert.Throws<InvalidDataException>(() => LoadoutCatalog.Load(builtIn));
+        }
+        finally
+        {
+            Directory.Delete(builtIn, true);
+        }
+    }
+
+    private static string Presets() => Path.Combine(AppContext.BaseDirectory, "presets");
+
+    private static string NewUserDirectory()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "sessionpilot-loadouts-" + Guid.NewGuid().ToString("n"));
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
+    private static string LoadoutJson(string id, string priorityPolicy) =>
+        $$"""
+        {
+          "schemaVersion": 1,
+          "id": "{{id}}",
+          "displayName": "Example",
+          "summary": "Example",
+          "objective": "restore",
+          "sessionMode": "temporary",
+          "powerPreference": "balanced",
+          "backgroundPolicy": "preserve",
+          "offerPerformanceMode": false,
+          "offerEfficiencyModeOff": false,
+          "priorityPolicy": "{{priorityPolicy}}",
+          "cpuPlacementPolicy": "unchanged",
+          "proBalancePolicy": "preserve",
+          "requiresExplicitWorkers": false,
+          "participantRoles": [],
+          "notes": []
+        }
+        """;
 }

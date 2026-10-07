@@ -57,3 +57,20 @@ public static class CheckReport
         return redacted;
     }
 }
+
+public static class FailureText
+{
+    public static string ForDialog(string message)
+    {
+        var detail = CheckReport.Redact(message);
+        return string.IsNullOrEmpty(detail)
+            ? "Nothing was written."
+            : detail + Environment.NewLine + "Nothing was written.";
+    }
+
+    public static string ForCheck(string message)
+    {
+        var redacted = CheckReport.Redact(message);
+        return string.Join(' ', redacted.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries));
+    }
+}

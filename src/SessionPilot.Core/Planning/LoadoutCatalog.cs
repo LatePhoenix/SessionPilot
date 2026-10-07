@@ -7,12 +7,15 @@ public sealed class LoadoutCatalog
 {
     private readonly Dictionary<string, Loadout> _loadouts;
 
-    private LoadoutCatalog(IEnumerable<Loadout> loadouts)
+    private LoadoutCatalog(IEnumerable<Loadout> loadouts, IReadOnlyList<string> loadErrors)
     {
         _loadouts = loadouts.ToDictionary(loadout => loadout.Id, StringComparer.OrdinalIgnoreCase);
+        LoadErrors = loadErrors;
     }
 
     public IReadOnlyList<Loadout> All => _loadouts.Values.OrderBy(loadout => loadout.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+
+    public IReadOnlyList<string> LoadErrors { get; }
 
     public bool TryGet(string id, out Loadout loadout) => _loadouts.TryGetValue(id, out loadout!);
 
@@ -20,13 +23,31 @@ public sealed class LoadoutCatalog
     {
         var loadouts = ReadDirectory(builtInDirectory, builtIn: true).ToList();
         var ids = new HashSet<string>(loadouts.Select(loadout => loadout.Id), StringComparer.OrdinalIgnoreCase);
+        var errors = new List<string>();
         if (userDirectory is not null && Directory.Exists(userDirectory))
         {
-            foreach (var loadout in ReadDirectory(userDirectory, builtIn: false))
+            foreach (var path in Directory.EnumerateFiles(userDirectory, "*.json").OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
             {
+                Loadout loadout;
+                try
+                {
+                    loadout = ParseLoadout(File.ReadAllText(path), builtIn: false, path);
+                }
+                catch (JsonException)
+                {
+                    errors.Add(Path.GetFileName(path) + ": The file is not valid JSON.");
+                    continue;
+                }
+                catch (InvalidDataException exception)
+                {
+                    errors.Add(Path.GetFileName(path) + ": " + exception.Message);
+                    continue;
+                }
+
                 if (!ids.Add(loadout.Id))
                 {
-                    throw new InvalidDataException($"User loadout '{loadout.Id}' collides with a built-in id.");
+                    errors.Add(Path.GetFileName(path) + ": User loadout '" + loadout.Id + "' collides with an existing id.");
+                    continue;
                 }
 
                 loadouts.Add(loadout);
@@ -34,7 +55,7 @@ public sealed class LoadoutCatalog
         }
 
         Require(loadouts, "balanced");
-        return new LoadoutCatalog(loadouts);
+        return new LoadoutCatalog(loadouts, errors);
     }
 
     public Loadout Clone(string sourceId, string newId, string displayName)
@@ -86,17 +107,32 @@ public sealed class LoadoutCatalog
 
         foreach (var path in Directory.EnumerateFiles(directory, "*.json").OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
         {
-            var document = JsonSerializer.Deserialize<LoadoutDocument>(File.ReadAllText(path), JsonOptions)
-                ?? throw new InvalidDataException($"Empty loadout file '{path}'.");
-            var loadout = FromDocument(document, builtIn, path);
-            var error = LoadoutValidator.Validate(loadout);
-            if (error is not null)
+            Loadout loadout;
+            try
             {
-                throw new InvalidDataException($"{path}: {error}");
+                loadout = ParseLoadout(File.ReadAllText(path), builtIn, path);
+            }
+            catch (Exception exception) when (exception is JsonException or InvalidDataException)
+            {
+                throw new InvalidDataException($"{path}: {exception.Message}", exception);
             }
 
             yield return loadout;
         }
+    }
+
+    private static Loadout ParseLoadout(string json, bool builtIn, string? path)
+    {
+        var document = JsonSerializer.Deserialize<LoadoutDocument>(json, JsonOptions)
+            ?? throw new InvalidDataException("Empty loadout file.");
+        var loadout = FromDocument(document, builtIn, path);
+        var error = LoadoutValidator.Validate(loadout);
+        if (error is not null)
+        {
+            throw new InvalidDataException(error);
+        }
+
+        return loadout;
     }
 
     private static void Require(IReadOnlyList<Loadout> loadouts, string id)
