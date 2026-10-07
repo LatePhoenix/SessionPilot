@@ -16,6 +16,31 @@ public class TriggerAndMeasurementTests
     }
 
     [Fact]
+    public void Engine_SuggestsOnly_AndNeverApplies()
+    {
+        var now = DateTimeOffset.Parse("2026-10-07T12:00:00Z");
+        var options = new TriggerOptions { OptedIn = true, Debounce = TimeSpan.FromSeconds(1), MinimumDwell = TimeSpan.FromSeconds(1), ExitGrace = TimeSpan.FromSeconds(1) };
+        TriggerSnapshot[] snapshots =
+        [
+            new() { SignaledLoadouts = ["vrchat-social"] },
+            new() { SignaledLoadouts = ["vrchat-social"], PendingLoadoutId = "vrchat-social", PendingSince = now.AddSeconds(-5) },
+            new() { ManualOverrideActive = true, ManualLoadoutId = "balanced", SignaledLoadouts = ["vrchat-social"] },
+            new() { ActiveLoadoutId = "vrchat-social", SessionEndedAt = now.AddMinutes(-2) },
+            new() { SignaledLoadouts = [] }
+        ];
+        foreach (var snapshot in snapshots)
+        {
+            var decision = TriggerEngine.Evaluate(snapshot, options, now);
+            Assert.True(decision.Action is "hold" or "wait" or "suggest");
+            var wrapped = TriggerSuggestions.Suggest(snapshot, options, now);
+            Assert.True(wrapped.Action is "hold" or "wait" or "suggest");
+        }
+
+        var off = TriggerEngine.Evaluate(snapshots[0], new TriggerOptions { OptedIn = false }, now);
+        Assert.Equal("hold", off.Action);
+    }
+
+    [Fact]
     public void TriggersOff_DoNotSuggest()
     {
         var decision = TriggerSuggestions.Suggest(

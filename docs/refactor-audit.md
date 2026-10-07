@@ -2,6 +2,8 @@
 
 Date of this inventory: 2026-10-07. This note describes the tree after the product rename and before the read-only shell. It does not record a Windows profile path or any live configuration values.
 
+2026-10-07: the follow-up audit and its fixes are in `docs/remediation-plan.md`. That plan is complete.
+
 ## Rename
 
 The solution, projects, namespaces, and assembly names changed from LassoPilot to SessionPilot:

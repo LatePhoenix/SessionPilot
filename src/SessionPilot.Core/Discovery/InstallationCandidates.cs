@@ -99,7 +99,7 @@ public static class ProcessInventory
         return new ProcessInventoryEntry
         {
             ProcessId = row.ProcessId,
-            CreationTime = access == "ok" ? row.CreationTime : row.CreationTime,
+            CreationTime = row.CreationTime,
             Name = row.Name,
             ExecutablePath = access == "ok" ? row.ExecutablePath : null,
             Access = access
