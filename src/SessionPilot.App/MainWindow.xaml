@@ -106,7 +106,16 @@
                     <TextBox x:Name="PromptBox" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
                 </DockPanel>
 
-                <ListBox x:Name="PagePlan" Visibility="Collapsed"/>
+                <DockPanel x:Name="PagePlan" Visibility="Collapsed">
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <CheckBox x:Name="ApprovePlan" Content="I approve this dry-run plan for one isolated copy" Foreground="#EAF1F8" Checked="ApproveCurrentPlan" Unchecked="ClearPlanApproval"/>
+                        <TextBlock Text="Isolated copy path. A live Process Lasso candidate is refused. No elevated helper is used." Foreground="#9FB0C3" TextWrapping="Wrap" Margin="0,8,0,4"/>
+                        <TextBox x:Name="IsolatedPath"/>
+                        <Button Content="Apply to isolated copy" HorizontalAlignment="Left" Margin="0,8,0,0" Style="{StaticResource PrimaryButton}" Click="ApplyIsolated"/>
+                        <TextBlock x:Name="ApplyResult" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                    </StackPanel>
+                    <ListBox x:Name="PlanChanges"/>
+                </DockPanel>
 
                 <DockPanel x:Name="PageSession" Visibility="Collapsed">
                     <StackPanel DockPanel.Dock="Top">

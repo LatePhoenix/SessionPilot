@@ -22,6 +22,12 @@ public static class LiveDiscovery
         return InstallationCandidates.Assemble(configs, binaries);
     }
 
+    public static IReadOnlyList<string> LiveConfigPaths()
+    {
+        var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+        return [Path.Combine(programData, "ProcessLasso", "config", "prolasso.ini")];
+    }
+
     public static HardwareInventory Hardware()
     {
         try

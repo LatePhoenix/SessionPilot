@@ -18,6 +18,8 @@ public partial class MainWindow : Window
     private LoadoutCatalog? _catalog;
     private readonly SessionCoordinator _session = new();
     private CompiledPlan? _plan;
+    private string? _approvedPlanHash;
+    private string? _approvedConfigHash;
     private HonestStatus _status = new();
     private int _logicalProcessors;
     private int _samplesTaken;
@@ -48,6 +50,8 @@ public partial class MainWindow : Window
             string.Join(Environment.NewLine, workflow.Steps.Select(step => "• " + step.Title + ": " + step.Instruction)) +
             Environment.NewLine + workflow.Note));
         ApplyStatus();
+        var recovery = StartupRecovery.DescribeIncomplete(AppPaths.JournalDirectory);
+        DashboardBody.Text += Environment.NewLine + Environment.NewLine + "Startup recovery:" + Environment.NewLine + string.Join(Environment.NewLine, recovery);
         ShowPage(PageDashboard, NavDashboard, "Dashboard");
     }
 
@@ -306,7 +310,10 @@ public partial class MainWindow : Window
         _plan = PlanCompiler.Compile(new CompileInput { Intent = intent, Loadout = loadout });
         _status = _status with { Compiled = "compiled (dry run)" };
         ApplyStatus();
-        PagePlan.ItemsSource = _plan.Changes.Select(change =>
+        _approvedPlanHash = null;
+        _approvedConfigHash = null;
+        ApprovePlan.IsChecked = false;
+        PlanChanges.ItemsSource = _plan.Changes.Select(change =>
             change.TargetIdentity + "  " + change.ExistingValue + " → " + change.ProposedValue +
             Environment.NewLine + change.Rationale + Environment.NewLine +
             change.SupportStatus + "  writable=" + change.Writable).ToList();
@@ -370,6 +377,81 @@ public partial class MainWindow : Window
         }, new ShellStarter(), readinessTimedOut: false);
         LaunchResultText.Text = result.Detail + Environment.NewLine + _session.RelaunchNote() +
                                 Environment.NewLine + "Owned: " + _session.Owned.Count + ". Already running: " + _session.AlreadyRunning.Count + ".";
+    }
+
+    private void ApproveCurrentPlan(object sender, RoutedEventArgs e)
+    {
+        if (_plan is null)
+        {
+            ApprovePlan.IsChecked = false;
+            ApplyResult.Text = "Compile a plan before approving it.";
+            return;
+        }
+
+        var path = IsolatedPath.Text.Trim();
+        if (!File.Exists(path))
+        {
+            ApprovePlan.IsChecked = false;
+            ApplyResult.Text = "Choose an isolated copy that exists. Nothing was written.";
+            return;
+        }
+
+        _approvedPlanHash = ApprovalBinding.HashPlan(_plan);
+        _approvedConfigHash = ContentHashing.Sha256(File.ReadAllBytes(path));
+        ApplyResult.Text = "Approval is bound to this plan and this file hash.";
+    }
+
+    private void ClearPlanApproval(object sender, RoutedEventArgs e)
+    {
+        _approvedPlanHash = null;
+        _approvedConfigHash = null;
+    }
+
+    private void ApplyIsolated(object sender, RoutedEventArgs e)
+    {
+        if (_plan is null)
+        {
+            ApplyResult.Text = "There is no compiled plan.";
+            return;
+        }
+
+        var path = IsolatedPath.Text.Trim();
+        if (!File.Exists(path))
+        {
+            ApplyResult.Text = "The isolated copy is missing. Nothing was written.";
+            return;
+        }
+
+        var planHash = ApprovalBinding.HashPlan(_plan);
+        var configHash = ContentHashing.Sha256(File.ReadAllBytes(path));
+        if (!ApprovalBinding.StillValid(_approvedPlanHash, _approvedConfigHash, planHash, configHash))
+        {
+            _approvedPlanHash = null;
+            _approvedConfigHash = null;
+            ApprovePlan.IsChecked = false;
+            ApplyResult.Text = "The plan or file changed. Approval was invalidated. Nothing was written.";
+            return;
+        }
+
+        var result = new TransactionCoordinator().Apply(new ApplyRequest
+        {
+            TargetPath = path,
+            ExpectedBaselineHash = configHash,
+            Approved = true,
+            JournalDirectory = AppPaths.JournalDirectory,
+            LiveCandidatePaths = LiveDiscovery.LiveConfigPaths(),
+            PlanId = _plan.PlanId,
+            Edits = []
+        });
+        _status = _status with
+        {
+            Persisted = result.PersistenceStatus,
+            Governor = result.GovernorStatus,
+            EffectiveSetting = result.EffectiveStatus,
+            PerformanceEffect = result.PerformanceStatus
+        };
+        ApplyStatus();
+        ApplyResult.Text = result.Status + ": " + CheckReport.Redact(result.Message);
     }
 
     private void ApplyStatus()
