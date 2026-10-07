@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -310,6 +311,41 @@ public partial class MainWindow : Window
 
         PromptResult.Text += Environment.NewLine + "Presets work without Ollama. Nothing was written.";
         Compile(loadout, interpretation.Intent);
+    }
+
+    private async void InterpretWithOllama(object sender, RoutedEventArgs e)
+    {
+        if (!OllamaSessionGate.Allow(_session.Phase))
+        {
+            PromptResult.Text = "Ollama stays unloaded while a session is Active. Nothing was sent.";
+            return;
+        }
+
+        if (_catalog is null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var http = new HttpClient();
+            var client = new OllamaIntentClient(http);
+            var interpretation = await client.InterpretAsync(new OllamaRequest
+            {
+                Endpoint = OllamaSessionGate.LoopbackEndpoint,
+                Model = OllamaModel.Text.Trim(),
+                Prompt = PromptBox.Text
+            }, _catalog, CancellationToken.None);
+            PromptResult.Text = interpretation.Explanation + Environment.NewLine + "The prompt was not stored.";
+            if (interpretation.Success && interpretation.Intent is not null && _catalog.TryGet(interpretation.Intent.LoadoutId, out var loadout))
+            {
+                Compile(loadout, interpretation.Intent);
+            }
+        }
+        catch (Exception)
+        {
+            PromptResult.Text = "Ollama could not be used. Presets still work without it. Nothing was stored.";
+        }
     }
 
     private void Compile(Loadout loadout, UserIntent intent)
