@@ -21,6 +21,8 @@
     <AssemblyTitle>SessionPilot</AssemblyTitle>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- The UI is English only, so leave out the localized WPF resource folders. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
 
 </Project>

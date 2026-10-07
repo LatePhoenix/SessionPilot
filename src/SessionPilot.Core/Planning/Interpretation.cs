@@ -75,14 +75,20 @@ public static class DeterministicInterpreter
         }
 
         hits = hits.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var warnings = new List<string>();
+        if (HasAny(lower, "throttle background", "kill", "terminate", "real-time", "realtime priority"))
+        {
+            warnings.Add("Broad throttling, termination, and Real-time priority are not available from a sentence.");
+        }
+
         if (hits.Count == 0)
         {
-            return Fail("No known workload matched. Choose a loadout. Nothing was invented from the sentence.");
+            return Fail("No known workload matched. Choose a loadout. Nothing was invented from the sentence.") with { Warnings = warnings };
         }
 
         if (hits.Count > 1)
         {
-            return Fail($"More than one workload matched: {string.Join(", ", hits)}. Choose one loadout.");
+            return Fail($"More than one workload matched: {string.Join(", ", hits)}. Choose one loadout.") with { Warnings = warnings };
         }
 
         var loadoutId = hits[0];
@@ -97,11 +103,6 @@ public static class DeterministicInterpreter
                 : DefaultPower(loadoutId);
         var suggestRestore = HasAny(lower, "restore", "revert", "put things back");
         var applications = RequestedApplications(normalized);
-        var warnings = new List<string>();
-        if (HasAny(lower, "throttle background", "kill", "terminate", "real-time", "realtime priority"))
-        {
-            warnings.Add("Broad throttling, termination, and Real-time priority are not available from a sentence.");
-        }
 
         return new Interpretation
         {

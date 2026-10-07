@@ -33,6 +33,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        SourceInitialized += (_, _) => DarkTitleBar.Apply(this);
         _samples.Tick += SampleTick;
         Closed += (_, _) =>
         {
@@ -316,7 +317,7 @@ public partial class MainWindow : Window
         }
 
         var interpretation = DeterministicInterpreter.Interpret(PromptBox.Text);
-        PromptResult.Text = interpretation.Explanation;
+        PromptResult.Text = WithWarnings(interpretation);
         if (!interpretation.Success || interpretation.Intent is null || !_catalog.TryGet(interpretation.Intent.LoadoutId, out var loadout))
         {
             return;
@@ -325,6 +326,9 @@ public partial class MainWindow : Window
         PromptResult.Text += Environment.NewLine + "Presets work without Ollama. Nothing was written.";
         Compile(loadout, interpretation.Intent);
     }
+
+    private static string WithWarnings(Interpretation interpretation) =>
+        string.Join(Environment.NewLine, interpretation.Warnings.Prepend(interpretation.Explanation));
 
     private async void InterpretWithOllama(object sender, RoutedEventArgs e)
     {
@@ -336,6 +340,14 @@ public partial class MainWindow : Window
 
         if (_catalog is null)
         {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(OllamaModel.Text))
+        {
+            var installed = OllamaModels.Installed(OllamaModels.DefaultDirectory());
+            PromptResult.Text = "Choose an installed Ollama model. SessionPilot does not download one." + Environment.NewLine +
+                                (installed.Count == 0 ? "No installed models were found." : "Installed: " + string.Join(", ", installed) + ".");
             return;
         }
 
@@ -353,7 +365,7 @@ public partial class MainWindow : Window
                 Model = OllamaModel.Text.Trim(),
                 Prompt = PromptBox.Text
             }, _catalog, _ollamaRequest.Token);
-            PromptResult.Text = interpretation.Explanation + Environment.NewLine + "The prompt was not stored.";
+            PromptResult.Text = WithWarnings(interpretation) + Environment.NewLine + "The prompt was not stored.";
             if (!OllamaSessionGate.CompileAfterRequest(_session.Phase))
             {
                 PromptResult.Text += Environment.NewLine + OllamaSessionGate.ActiveSessionNote;
@@ -564,6 +576,12 @@ public partial class MainWindow : Window
             _approvedConfigHash = null;
             ApprovePlan.IsChecked = false;
             ApplyResult.Text = IsolatedCopyHash.UnreadableMessage;
+            return;
+        }
+
+        if (_approvedPlanHash is null || _approvedConfigHash is null)
+        {
+            ApplyResult.Text = "Approve the plan before applying. Nothing was written.";
             return;
         }
 

@@ -101,7 +101,7 @@ public class ApprovalAndRecoveryTests
             Assert.Empty(scan.Incomplete);
             Assert.Equal("bad.json", Assert.Single(scan.UnreadableFileNames));
             var notes = StartupRecovery.DescribeIncomplete(root);
-            Assert.Contains("bad.json It was not opened or rolled back.", notes);
+            Assert.Contains("bad.json: It was not opened or rolled back.", notes);
             Assert.DoesNotContain(notes, note => note.Contains(root, StringComparison.OrdinalIgnoreCase));
         }
         finally
@@ -120,7 +120,7 @@ public class ApprovalAndRecoveryTests
             var scan = JournalRecovery.Scan(root);
             Assert.Empty(JournalRecovery.FindIncomplete(root));
             Assert.Equal("empty.json", Assert.Single(scan.UnreadableFileNames));
-            Assert.Contains("empty.json It was not opened or rolled back.", StartupRecovery.DescribeIncomplete(root));
+            Assert.Contains("empty.json: It was not opened or rolled back.", StartupRecovery.DescribeIncomplete(root));
         }
         finally
         {
@@ -145,7 +145,7 @@ public class ApprovalAndRecoveryTests
             var notes = StartupRecovery.DescribeIncomplete(root);
             Assert.Equal(before, File.ReadAllBytes(target));
             Assert.Contains(notes, note => note.Contains("No rollback was applied", StringComparison.Ordinal));
-            Assert.Contains("bad.json It was not opened or rolled back.", notes);
+            Assert.Contains("bad.json: It was not opened or rolled back.", notes);
         }
         finally
         {

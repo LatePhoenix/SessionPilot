@@ -51,6 +51,18 @@ public class TriggerAndMeasurementTests
     }
 
     [Fact]
+    public void UnknownSignals_SayNoKnownLoadout()
+    {
+        var options = new TriggerOptions { OptedIn = true };
+        var unknown = TriggerSuggestions.Suggest(new TriggerSnapshot { SignaledLoadouts = ["not-a-loadout"] }, options, DateTimeOffset.UnixEpoch);
+        var empty = TriggerSuggestions.Suggest(new TriggerSnapshot { SignaledLoadouts = [] }, options, DateTimeOffset.UnixEpoch);
+
+        Assert.Equal("hold", unknown.Action);
+        Assert.Equal("No known loadout in the signals.", unknown.Reason);
+        Assert.Equal("No workload signal.", empty.Reason);
+    }
+
+    [Fact]
     public void LowerPrecedenceFirstLine_ReachesSuggestAfterDwell()
     {
         var tracker = new TriggerTracker();

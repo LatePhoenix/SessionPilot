@@ -88,7 +88,7 @@ public static class StartupRecovery
 
         foreach (var name in scan.UnreadableFileNames)
         {
-            lines.Add(name + " It was not opened or rolled back.");
+            lines.Add(name + ": It was not opened or rolled back.");
         }
 
         return lines;

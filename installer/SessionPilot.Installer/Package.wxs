@@ -20,7 +20,7 @@
       <Directory Id="INSTALLFOLDER" Name="SessionPilot">
         <Component Id="SessionPilotFolderCleanup" Guid="EA62075D-6D98-42AF-905A-AB86FB87A6FF">
           <RemoveFolder Id="RemoveInstallFolder" On="uninstall" />
-          <util:RemoveFolderEx On="uninstall" Property="SESSIONPILOT_INSTALLFOLDER" />
+          <util:RemoveFolderEx On="uninstall" Property="SESSIONPILOT_INSTALLFOLDER" Condition="SESSIONPILOT_INSTALLFOLDER" />
           <RegistryValue Root="HKCU" Key="Software\SessionPilot" Name="InstallFolder" Type="integer" Value="1" KeyPath="yes" />
           <RegistryValue Root="HKCU" Key="Software\SessionPilot" Name="InstallFolderPath" Type="string" Value="[INSTALLFOLDER]" />
         </Component>
