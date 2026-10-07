@@ -192,26 +192,26 @@ Branch: `fix/phase-5-ini-transactions`. Nothing writes to a live file today, but
 
 Branch: `fix/phase-6-ui-qol`.
 
-- [ ] **6.1 Take diagnostics samples off the UI thread.** `MainWindow.SampleTick` (`MainWindow.xaml.cs:122`) enumerates every process on the UI thread every 2 seconds.
+- [x] **6.1 Take diagnostics samples off the UI thread.** `MainWindow.SampleTick` (`MainWindow.xaml.cs:122`) enumerates every process on the UI thread every 2 seconds.
   - Move collection into Infrastructure: `ProcessSampler.Sample(previousCpu, wall, logicalProcessors)` returns rows plus the updated CPU map, and the window runs it with `Task.Run`.
   - Skip a tick if the previous sample is still running.
   - Prune the previous-CPU map to the keys seen in the latest sample. That also fixes the never-pruned cache.
   - Keep the row semantics exactly as they are: `access-denied`, `exited`, and `unavailable` strings.
   - Unit-test the pruning and the CPU delta on synthetic input, not live processes.
-- [ ] **6.2 Run startup discovery asynchronously.** `MainWindow.LoadShell` runs topology, `powercfg`, journal scan, and catalog load synchronously in `Loaded`.
+- [x] **6.2 Run startup discovery asynchronously.** `MainWindow.LoadShell` runs topology, `powercfg`, journal scan, and catalog load synchronously in `Loaded`.
   - Make it `async`. Run blocking discovery on `Task.Run`. Show "Discovering…" placeholders.
   - Keep navigation usable while discovery runs, and guard handlers that need `_catalog` (they already return early when it is null).
-- [ ] **6.3 Let the user clear a manual loadout selection.** Once a loadout is picked by hand, triggers stay overridden until restart.
+- [x] **6.3 Let the user clear a manual loadout selection.** Once a loadout is picked by hand, triggers stay overridden until restart.
   - Add `SessionCoordinator.ClearManualSelection()` and a "Clear manual selection" button on the Loadouts page that also clears the list selection.
   - Test the coordinator method.
-- [ ] **6.4 Let the user change or reset the power owner.** Today the recorded owner cannot be changed.
+- [x] **6.4 Let the user change or reset the power owner.** Today the recorded owner cannot be changed.
   - Add a "Clear recorded owner" action that returns `PowerOwnerKind.Unset` with "The recorded owner was cleared. Nothing was switched."
   - Add `PowerOwnership.Clear()` in Core and test it. The refusal of a *second* concurrent owner stays.
-- [ ] **6.5 Explain the next step when Continue cannot proceed.** `ContinueSession` (`MainWindow.xaml.cs:430`) always says "Compile a plan before preparing."
+- [x] **6.5 Explain the next step when Continue cannot proceed.** `ContinueSession` (`MainWindow.xaml.cs:430`) always says "Compile a plan before preparing."
   - Move the next-phase mapping into Core, `SessionCoordinator.NextPhase(bool planCompiled)`, returning the next phase or a reason. Reasons: Idle → "Press Begin to start a session."; AwaitingApproval without a plan → "Compile a plan before preparing."; terminal phases → "Press Begin to start again."
   - Test the mapping.
   - Also remove the redundant `Compiled = _status.Compiled` in the `with` expression at `:452`.
-- [ ] **6.6 Keep the power owner and measurement notes across restarts.** Both are memory-only today.
+- [x] **6.6 Keep the power owner and measurement notes across restarts.** Both are memory-only today.
   - Store them in `%LOCALAPPDATA%\SessionPilot\state.json` through a small `AppStateStore` in Infrastructure, using the same atomic temp-then-replace pattern as `SameVolumeFileReplacer`.
   - Corrupt state is ignored and reported once, matching Phase 1's tolerance rules.
   - Measurement rows keep `PerformanceEffect = not-measured`.
