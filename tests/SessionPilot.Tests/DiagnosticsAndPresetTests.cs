@@ -203,6 +203,36 @@ public class DiagnosticsAndPresetTests
     }
 
     [Fact]
+    public void Redact_CoversSpacesSlashesUncAndUserTokens()
+    {
+        var spaced = CheckReport.Redact(@"C:\Program Files\Process Lasso\prolasso.ini");
+        Assert.Contains("[path]", spaced, StringComparison.Ordinal);
+        Assert.DoesNotContain("Program", spaced, StringComparison.Ordinal);
+        Assert.DoesNotContain("prolasso.ini", spaced, StringComparison.Ordinal);
+
+        var forward = CheckReport.Redact("C:/Users/alice/x.ini");
+        Assert.DoesNotContain("alice", forward, StringComparison.Ordinal);
+        Assert.DoesNotContain("x.ini", forward, StringComparison.Ordinal);
+
+        var unc = CheckReport.Redact(@"\\server\share\prolasso.ini and //files/share/other.ini");
+        Assert.DoesNotContain("server", unc, StringComparison.Ordinal);
+        Assert.DoesNotContain("prolasso.ini", unc, StringComparison.Ordinal);
+        Assert.DoesNotContain("other.ini", unc, StringComparison.Ordinal);
+
+        var sentence = CheckReport.Redact(@"Open C:\Program Files\app\config.ini then stop.");
+        Assert.DoesNotContain("config.ini", sentence, StringComparison.Ordinal);
+        Assert.DoesNotContain("Program", sentence, StringComparison.Ordinal);
+
+        var untouched = CheckReport.Redact("see http://example.test/a at 12:30");
+        Assert.Contains("http://example.test/a", untouched, StringComparison.Ordinal);
+        Assert.Contains("12:30", untouched, StringComparison.Ordinal);
+
+        var user = CheckReport.Redact("hello Alice today", ["Alice"]);
+        Assert.Contains("[user]", user, StringComparison.Ordinal);
+        Assert.DoesNotContain("Alice", user, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void FailureText_RedactsTheDialog_AndKeepsTheCheckOnOneLine()
     {
         var dialog = FailureText.ForDialog(@"Cannot read C:\Users\someone\secret.ini");

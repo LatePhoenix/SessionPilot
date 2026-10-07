@@ -17,3 +17,25 @@ public static class TriggerSuggestions
         return decision;
     }
 }
+
+public sealed class TriggerTracker
+{
+    public string? PendingLoadoutId { get; private set; }
+
+    public DateTimeOffset? PendingSince { get; private set; }
+
+    public TriggerDecision Evaluate(IReadOnlyList<string> signals, string? manualLoadoutId, bool optedIn, DateTimeOffset now)
+    {
+        var decision = TriggerSuggestions.Suggest(new TriggerSnapshot
+        {
+            ManualOverrideActive = manualLoadoutId is not null,
+            ManualLoadoutId = manualLoadoutId,
+            SignaledLoadouts = signals,
+            PendingLoadoutId = PendingLoadoutId,
+            PendingSince = PendingSince
+        }, new TriggerOptions { OptedIn = optedIn }, now);
+        PendingLoadoutId = decision.PendingLoadoutId;
+        PendingSince = decision.PendingSince;
+        return decision;
+    }
+}

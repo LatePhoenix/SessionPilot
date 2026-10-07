@@ -157,6 +157,28 @@ public class CodecAndPlanTests
         Assert.Null(interpretation.Intent);
     }
 
+    [Fact]
+    public void DisplayAndDiagnostics_DoNotFalsePositive()
+    {
+        Assert.False(DeterministicInterpreter.Interpret("adjust display settings").Success);
+        Assert.False(DeterministicInterpreter.Interpret("display").Success);
+        var coding = DeterministicInterpreter.Interpret("run diagnostics while coding");
+        Assert.True(coding.Success);
+        Assert.Equal("development-interactive", coding.Intent!.LoadoutId);
+        var rebuild = DeterministicInterpreter.Interpret("rebuild the solution");
+        Assert.True(rebuild.Success);
+        Assert.Equal("development-build-heavy", rebuild.Intent!.LoadoutId);
+    }
+
+    [Fact]
+    public void QuotedPathLikeNames_AreFiltered()
+    {
+        var interpretation = DeterministicInterpreter.Interpret("play \"notepad\" and \"C:\\game.exe\" and \"..\\secret\"");
+        Assert.True(interpretation.Success);
+        Assert.Contains("notepad", interpretation.Intent!.RequestedApplications);
+        Assert.DoesNotContain(interpretation.Intent.RequestedApplications, name => name.Contains('\\', StringComparison.Ordinal) || name.Contains("..", StringComparison.Ordinal));
+    }
+
     private static LoadoutCatalog LoadCatalog() => LoadoutCatalog.Load(PresetDirectory());
 
     private static string PresetDirectory() => Path.Combine(AppContext.BaseDirectory, "presets");

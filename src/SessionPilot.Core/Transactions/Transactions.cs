@@ -11,20 +11,32 @@ public sealed class SameVolumeFileReplacer : IFileReplacer
 {
     public void Replace(string targetPath, byte[] contents)
     {
+        var attributes = File.GetAttributes(targetPath);
+        if ((attributes & FileAttributes.ReadOnly) != 0)
+        {
+            throw new IOException("The target is read-only.");
+        }
+
         var directory = Path.GetDirectoryName(targetPath) ?? throw new InvalidOperationException("Target has no directory.");
         var temp = Path.Combine(directory, ".sessionpilot-" + Guid.NewGuid().ToString("n") + ".tmp");
         File.WriteAllBytes(temp, contents);
         try
         {
-            var attributes = File.GetAttributes(targetPath);
-            File.SetAttributes(temp, attributes);
+            File.SetAttributes(temp, attributes & ~FileAttributes.ReadOnly);
             File.Replace(temp, targetPath, null);
         }
         finally
         {
             if (File.Exists(temp))
             {
-                File.Delete(temp);
+                try
+                {
+                    File.SetAttributes(temp, FileAttributes.Normal);
+                    File.Delete(temp);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                }
             }
         }
     }

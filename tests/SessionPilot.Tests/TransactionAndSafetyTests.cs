@@ -206,6 +206,46 @@ public class TransactionAndSafetyTests
     }
 
     [Fact]
+    public void ReadOnlyTarget_FailsWithoutLeavingATempFile()
+    {
+        using var dir = new TempWorkspace();
+        var target = dir.Write("config.ini", "[Custom]\r\nAlpha=one\r\n");
+        File.SetAttributes(target, FileAttributes.ReadOnly);
+        try
+        {
+            var result = new TransactionCoordinator().Apply(new ApplyRequest
+            {
+                TargetPath = target,
+                ExpectedBaselineHash = ContentHashing.Sha256(File.ReadAllBytes(target)),
+                Approved = true,
+                JournalDirectory = dir.Journal,
+                Edits = [new IniEdit { Section = "Custom", Key = "Alpha", Value = "two" }]
+            });
+            Assert.Equal("failed", result.Status);
+            Assert.Contains("read-only", result.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(target)!, ".sessionpilot-*.tmp"));
+            Assert.Contains("Alpha=one", File.ReadAllText(target), StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.SetAttributes(target, FileAttributes.Normal);
+        }
+    }
+
+    [Theory]
+    [InlineData("1.5")]
+    [InlineData("1e30")]
+    [InlineData("\"1\"")]
+    public void NonIntegerSchemaVersion_FailsWithoutThrowing(string version)
+    {
+        var catalog = LoadoutCatalog.Load(Path.Combine(AppContext.BaseDirectory, "presets"));
+        var json = "{\"schemaVersion\":" + version + ",\"loadoutId\":\"balanced\",\"objective\":\"restore\",\"sessionMode\":\"temporary\",\"powerPreference\":\"balanced\",\"backgroundPolicy\":\"preserve\",\"requestedApplications\":[]}";
+        var interpretation = IntentValidator.ValidateJson(json, catalog);
+        Assert.False(interpretation.Success);
+        Assert.Contains("schemaVersion", interpretation.Explanation, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ModelOutput_WithAShellField_IsRejected()
     {
         var catalog = LoadoutCatalog.Load(Path.Combine(AppContext.BaseDirectory, "presets"));

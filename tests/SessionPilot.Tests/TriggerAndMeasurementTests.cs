@@ -26,6 +26,40 @@ public class TriggerAndMeasurementTests
     }
 
     [Fact]
+    public void LowerPrecedenceFirstLine_ReachesSuggestAfterDwell()
+    {
+        var tracker = new TriggerTracker();
+        var start = DateTimeOffset.Parse("2026-10-07T12:00:00Z");
+        var first = tracker.Evaluate(["balanced", "desktop-gaming"], null, true, start);
+        Assert.Equal("wait", first.Action);
+        Assert.Equal("desktop-gaming", tracker.PendingLoadoutId);
+
+        var later = tracker.Evaluate(["balanced", "desktop-gaming"], null, true, start.AddSeconds(20));
+        Assert.Equal("suggest", later.Action);
+        Assert.Equal("desktop-gaming", later.LoadoutId);
+    }
+
+    [Fact]
+    public void ChangingTopSignal_RestartsDwell()
+    {
+        var tracker = new TriggerTracker();
+        var start = DateTimeOffset.Parse("2026-10-07T12:00:00Z");
+        tracker.Evaluate(["desktop-gaming"], null, true, start);
+        var changed = tracker.Evaluate(["vrchat-social"], null, true, start.AddSeconds(20));
+        Assert.Equal("wait", changed.Action);
+        Assert.Equal("vrchat-social", tracker.PendingLoadoutId);
+        Assert.Equal(start.AddSeconds(20), tracker.PendingSince);
+    }
+
+    [Fact]
+    public void OptOut_StillHolds()
+    {
+        var tracker = new TriggerTracker();
+        var decision = tracker.Evaluate(["desktop-gaming"], null, false, DateTimeOffset.Parse("2026-10-07T12:00:30Z"));
+        Assert.Equal("hold", decision.Action);
+    }
+
+    [Fact]
     public void Measurements_DoNotClaimFrameRate()
     {
         var log = new MeasurementLog();
