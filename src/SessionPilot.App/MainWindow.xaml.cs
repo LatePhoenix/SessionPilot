@@ -18,6 +18,9 @@ public partial class MainWindow : Window
     private readonly Stopwatch _sampleClock = new();
     private LoadoutCatalog? _catalog;
     private readonly SessionCoordinator _session = new();
+    private readonly MeasurementLog _measurements = new();
+    private DateTimeOffset? _triggerPendingSince;
+    private string? _triggerPendingId;
     private CompiledPlan? _plan;
     private PowerOwnerKind _powerOwner = PowerOwnerKind.Unset;
     private string? _approvedPlanHash;
@@ -91,6 +94,7 @@ public partial class MainWindow : Window
     private void ShowPrompt(object sender, RoutedEventArgs e) => ShowPage(PagePrompt, NavPrompt, "Prompt");
     private void ShowPlan(object sender, RoutedEventArgs e) => ShowPage(PagePlan, NavPlan, "Plan review");
     private void ShowSession(object sender, RoutedEventArgs e) => ShowPage(PageSession, NavSession, "Session");
+    private void ShowMeasurement(object sender, RoutedEventArgs e) => ShowPage(PageMeasurement, NavMeasurement, "Measurement");
 
     private void ShowPage(UIElement page, Button active, string title)
     {
@@ -100,9 +104,10 @@ public partial class MainWindow : Window
         PagePrompt.Visibility = Visibility.Collapsed;
         PagePlan.Visibility = Visibility.Collapsed;
         PageSession.Visibility = Visibility.Collapsed;
+        PageMeasurement.Visibility = Visibility.Collapsed;
         page.Visibility = Visibility.Visible;
         PageTitle.Text = title;
-        foreach (var button in new[] { NavDashboard, NavDiagnostics, NavLoadouts, NavPrompt, NavPlan, NavSession })
+        foreach (var button in new[] { NavDashboard, NavDiagnostics, NavLoadouts, NavPrompt, NavPlan, NavSession, NavMeasurement })
         {
             button.Background = Brushes.Transparent;
         }
@@ -282,6 +287,7 @@ public partial class MainWindow : Window
         }
 
         var loadout = _catalog.All[LoadoutList.SelectedIndex];
+        _session.ChooseManually(loadout.Id);
         LoadoutDetail.Text = loadout.DisplayName + Environment.NewLine + loadout.Summary + Environment.NewLine +
                              string.Join(Environment.NewLine, loadout.Notes);
         Compile(loadout, new UserIntent
@@ -360,6 +366,42 @@ public partial class MainWindow : Window
             change.TargetIdentity + "  " + change.ExistingValue + " → " + change.ProposedValue +
             Environment.NewLine + change.Rationale + Environment.NewLine +
             change.SupportStatus + "  writable=" + change.Writable).ToList();
+    }
+
+    private void SuggestTrigger(object sender, RoutedEventArgs e)
+    {
+        var signaled = TriggerSignals.Text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var now = DateTimeOffset.UtcNow;
+        var desired = signaled.FirstOrDefault();
+        if (!string.Equals(desired, _triggerPendingId, StringComparison.OrdinalIgnoreCase))
+        {
+            _triggerPendingId = desired;
+            _triggerPendingSince = now;
+        }
+
+        var decision = TriggerSuggestions.Suggest(new TriggerSnapshot
+        {
+            ManualOverrideActive = _session.ManualLoadoutId is not null,
+            ManualLoadoutId = _session.ManualLoadoutId,
+            SignaledLoadouts = signaled,
+            PendingLoadoutId = _triggerPendingId,
+            PendingSince = _triggerPendingSince
+        }, new TriggerOptions { OptedIn = TriggersOptIn.IsChecked == true }, now);
+        if (decision.Action == "wait")
+        {
+            _triggerPendingId = decision.PendingLoadoutId;
+            _triggerPendingSince = decision.PendingSince;
+        }
+
+        TriggerSuggestion.Text = decision.Action + ": " + decision.Reason + " A suggestion is not an applied plan.";
+    }
+
+    private void RecordMeasurement(object sender, RoutedEventArgs e)
+    {
+        var run = _measurements.Add(MeasurementLabel.Text, MeasurementConfounders.Text);
+        MeasurementList.ItemsSource = _measurements.Runs.Select(item =>
+            item.Label + " — " + item.PerformanceEffect + Environment.NewLine + item.Confounders + Environment.NewLine + item.CaptureNote).ToList();
+        StatusPerformance.Text = run.PerformanceEffect;
     }
 
     private void RecordProcessLassoPower(object sender, RoutedEventArgs e) => RecordPower(PowerOwnerKind.ProcessLasso);

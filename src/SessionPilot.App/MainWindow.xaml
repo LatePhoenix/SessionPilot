@@ -30,6 +30,7 @@
                     <Button x:Name="NavPrompt" Content="Prompt" Style="{StaticResource NavButton}" Click="ShowPrompt"/>
                     <Button x:Name="NavPlan" Content="Plan review" Style="{StaticResource NavButton}" Click="ShowPlan"/>
                     <Button x:Name="NavSession" Content="Session" Style="{StaticResource NavButton}" Click="ShowSession"/>
+                    <Button x:Name="NavMeasurement" Content="Measurement" Style="{StaticResource NavButton}" Click="ShowMeasurement"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -74,6 +75,12 @@
                             <Button Content="Record Windows" Margin="8,0,0,0" Style="{StaticResource PrimaryButton}" Click="RecordWindowsPower"/>
                         </StackPanel>
                         <TextBlock x:Name="PowerDecisionText" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                        <TextBlock Text="Triggers" FontWeight="SemiBold" Margin="0,16,0,8"/>
+                        <CheckBox x:Name="TriggersOptIn" Content="Opt in to suggestions. This does not apply a plan or request elevation." Foreground="#EAF1F8"/>
+                        <TextBlock Text="Signaled loadout ids, one per line" Foreground="#9FB0C3" Margin="0,8,0,4"/>
+                        <TextBox x:Name="TriggerSignals" AcceptsReturn="True" Height="72"/>
+                        <Button Content="Suggest" HorizontalAlignment="Left" Margin="0,8,0,0" Style="{StaticResource PrimaryButton}" Click="SuggestTrigger"/>
+                        <TextBlock x:Name="TriggerSuggestion" TextWrapping="Wrap" Margin="0,8,0,0"/>
                     </StackPanel>
                 </ScrollViewer>
 
@@ -144,6 +151,18 @@
                         <Button Content="Launch" HorizontalAlignment="Left" Style="{StaticResource PrimaryButton}" Click="LaunchConfirmed"/>
                         <TextBlock x:Name="LaunchResultText" TextWrapping="Wrap" Margin="0,8,0,0"/>
                     </StackPanel>
+                </DockPanel>
+
+                <DockPanel x:Name="PageMeasurement" Visibility="Collapsed">
+                    <StackPanel DockPanel.Dock="Top">
+                        <TextBlock Text="Performance effect stays not-measured until a real import exists." Foreground="#9FB0C3" TextWrapping="Wrap"/>
+                        <TextBlock Text="Label" Foreground="#9FB0C3" Margin="0,8,0,4"/>
+                        <TextBox x:Name="MeasurementLabel"/>
+                        <TextBlock Text="Confounders" Foreground="#9FB0C3" Margin="0,8,0,4"/>
+                        <TextBox x:Name="MeasurementConfounders" AcceptsReturn="True" Height="72"/>
+                        <Button Content="Record run" HorizontalAlignment="Left" Margin="0,8,0,8" Style="{StaticResource PrimaryButton}" Click="RecordMeasurement"/>
+                    </StackPanel>
+                    <ListBox x:Name="MeasurementList"/>
                 </DockPanel>
             </Grid>
         </DockPanel>
