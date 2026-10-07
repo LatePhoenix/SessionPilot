@@ -150,19 +150,19 @@ Branch: `fix/phase-3-ollama`.
 
 Branch: `fix/phase-4-infrastructure`.
 
-- [ ] **4.1 Give the `powercfg` read a real timeout.** `PowerPlanReader.TryList` (`src/SessionPilot.Infrastructure/Discovery/PowerPlanReader.cs:7`) calls `ReadToEnd()` before `WaitForExit(4000)`, so the timeout never applies, and stderr is redirected but never read.
+- [x] **4.1 Give the `powercfg` read a real timeout.** `PowerPlanReader.TryList` (`src/SessionPilot.Infrastructure/Discovery/PowerPlanReader.cs:7`) calls `ReadToEnd()` before `WaitForExit(4000)`, so the timeout never applies, and stderr is redirected but never read.
   - Use the full path `Path.Combine(Environment.SystemDirectory, "powercfg.exe")`.
   - Do not redirect stderr.
   - Read stdout with `ReadToEndAsync`, combined with `WaitForExitAsync` under a 4-second `CancellationTokenSource`. On timeout, `Kill()` the `powercfg` process this code started (it is SessionPilot's own child, not a user application) and return `null`.
   - Make it `TryListAsync`, and have `MainWindow` await it (see 6.2).
-- [ ] **4.2 Parse power plans on any Windows display language.** `PowerPlanParser.Parse` (`src/SessionPilot.Core/Power/PowerOwnership.cs:26`) only finds the English text `Power Scheme GUID:`.
+- [x] **4.2 Parse power plans on any Windows display language.** `PowerPlanParser.Parse` (`src/SessionPilot.Core/Power/PowerOwnership.cs:26`) only finds the English text `Power Scheme GUID:`.
   - Find a GUID with a regex (`[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}`) on each line, take the name from the last `( … )` after it, and take `Active` from a trailing `*`.
   - Tests: the existing English sample, a synthetic German-style line (`GUID des Energieschemas: 381b4222-f694-41f0-9685-ff5bb260df2e  (Ausbalanciert) *`), and lines without a GUID being ignored.
-- [ ] **4.3 Pass launch arguments with standard Windows escaping.** `ShellStarter.Quote` (`MainWindow.xaml.cs:602`) strips embedded quotes and breaks on trailing backslashes and tabs.
+- [x] **4.3 Pass launch arguments with standard Windows escaping.** `ShellStarter.Quote` (`MainWindow.xaml.cs:602`) strips embedded quotes and breaks on trailing backslashes and tabs.
   - Move `ShellStarter` into `SessionPilot.Infrastructure` as a public `ShellProcessStarter : IProcessStarter`.
   - Build the start info in a pure static method `CreateStartInfo(pathOrUri, arguments)` that fills `ProcessStartInfo.ArgumentList`. Keep `UseShellExecute = true`, which URIs need. .NET applies standard Windows argument escaping to `ArgumentList` either way.
   - Tests on `CreateStartInfo`: an argument with spaces, an embedded quote, a trailing backslash, and an empty argument each round-trip through `ArgumentList` unchanged. Do not start a process in tests.
-- [ ] **4.4 Move `LiveWindowCloser` as well.** Move it to Infrastructure next to `ShellProcessStarter`, so the window holds no process logic. No behavior change.
+- [x] **4.4 Move `LiveWindowCloser` as well.** Move it to Infrastructure next to `ShellProcessStarter`, so the window holds no process logic. No behavior change.
 
 ---
 

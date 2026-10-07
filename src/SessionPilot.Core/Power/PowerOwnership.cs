@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace SessionPilot.Core;
 
 public enum PowerOwnerKind
@@ -23,26 +25,26 @@ public sealed record PowerDecision
 
 public static class PowerPlanParser
 {
+    private static readonly Regex GuidPattern = new(@"[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}", RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
     public static IReadOnlyList<PowerPlanInfo> Parse(string listing)
     {
         var plans = new List<PowerPlanInfo>();
         foreach (var raw in listing.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
         {
-            const string marker = "Power Scheme GUID:";
-            var index = raw.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-            if (index < 0)
+            var match = GuidPattern.Match(raw);
+            if (!match.Success)
             {
                 continue;
             }
 
-            var rest = raw[(index + marker.Length)..].Trim();
-            var guid = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
-            var open = rest.IndexOf('(');
-            var close = rest.LastIndexOf(')');
-            var name = open >= 0 && close > open ? rest[(open + 1)..close] : "";
+            var after = raw[(match.Index + match.Length)..];
+            var open = after.LastIndexOf('(');
+            var close = after.LastIndexOf(')');
+            var name = open >= 0 && close > open ? after[(open + 1)..close].Trim() : "";
             plans.Add(new PowerPlanInfo
             {
-                Guid = guid,
+                Guid = match.Value,
                 Name = name,
                 Active = raw.TrimEnd().EndsWith('*')
             });

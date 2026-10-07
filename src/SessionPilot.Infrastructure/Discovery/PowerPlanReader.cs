@@ -4,35 +4,62 @@ namespace SessionPilot.Infrastructure;
 
 public static class PowerPlanReader
 {
-    public static string? TryList()
+    public static async Task<string?> TryListAsync()
     {
+        Process? process = null;
         try
         {
-            using var process = Process.Start(new ProcessStartInfo
-            {
-                FileName = "powercfg",
-                Arguments = "/list",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            });
+            process = Process.Start(CreateListStartInfo());
             if (process is null)
             {
                 return null;
             }
 
-            var output = process.StandardOutput.ReadToEnd();
-            if (!process.WaitForExit(4000))
-            {
-                return null;
-            }
-
-            return output;
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(4));
+            var output = process.StandardOutput.ReadToEndAsync(timeout.Token);
+            await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+            return await output.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            Kill(process);
+            return null;
         }
         catch (Exception)
         {
             return null;
+        }
+        finally
+        {
+            process?.Dispose();
+        }
+    }
+
+    internal static ProcessStartInfo CreateListStartInfo() => new()
+    {
+        FileName = Path.Combine(Environment.SystemDirectory, "powercfg.exe"),
+        Arguments = "/list",
+        RedirectStandardOutput = true,
+        UseShellExecute = false,
+        CreateNoWindow = true
+    };
+
+    private static void Kill(Process? process)
+    {
+        if (process is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill();
+            }
+        }
+        catch (Exception)
+        {
         }
     }
 }
