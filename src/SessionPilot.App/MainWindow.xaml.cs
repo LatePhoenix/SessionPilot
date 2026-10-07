@@ -19,8 +19,7 @@ public partial class MainWindow : Window
     private LoadoutCatalog? _catalog;
     private readonly SessionCoordinator _session = new();
     private readonly MeasurementLog _measurements = new();
-    private DateTimeOffset? _triggerPendingSince;
-    private string? _triggerPendingId;
+    private readonly TriggerTracker _triggers = new();
     private CompiledPlan? _plan;
     private PowerOwnerKind _powerOwner = PowerOwnerKind.Unset;
     private string? _approvedPlanHash;
@@ -376,28 +375,7 @@ public partial class MainWindow : Window
     private void SuggestTrigger(object sender, RoutedEventArgs e)
     {
         var signaled = TriggerSignals.Text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var now = DateTimeOffset.UtcNow;
-        var desired = signaled.FirstOrDefault();
-        if (!string.Equals(desired, _triggerPendingId, StringComparison.OrdinalIgnoreCase))
-        {
-            _triggerPendingId = desired;
-            _triggerPendingSince = now;
-        }
-
-        var decision = TriggerSuggestions.Suggest(new TriggerSnapshot
-        {
-            ManualOverrideActive = _session.ManualLoadoutId is not null,
-            ManualLoadoutId = _session.ManualLoadoutId,
-            SignaledLoadouts = signaled,
-            PendingLoadoutId = _triggerPendingId,
-            PendingSince = _triggerPendingSince
-        }, new TriggerOptions { OptedIn = TriggersOptIn.IsChecked == true }, now);
-        if (decision.Action == "wait")
-        {
-            _triggerPendingId = decision.PendingLoadoutId;
-            _triggerPendingSince = decision.PendingSince;
-        }
-
+        var decision = _triggers.Evaluate(signaled, _session.ManualLoadoutId, TriggersOptIn.IsChecked == true, DateTimeOffset.UtcNow);
         TriggerSuggestion.Text = decision.Action + ": " + decision.Reason + " A suggestion is not an applied plan.";
     }
 

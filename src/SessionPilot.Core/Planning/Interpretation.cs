@@ -24,7 +24,7 @@ public static class DeterministicInterpreter
 
         var lower = normalized.ToLowerInvariant();
         var hits = new List<string>();
-        if (Has(lower, "crowded") || Has(lower, "diagnostic"))
+        if (Has(lower, "vrchat") && (Has(lower, "crowded") || Has(lower, "diagnostic")))
         {
             hits.Add("vrchat-diagnostic");
         }
@@ -43,7 +43,7 @@ public static class DeterministicInterpreter
                 hits.Add("development-local-ai");
             }
 
-            if (HasAny(lower, "compile", "compiling", "build ", "building", "msbuild", "build-heavy"))
+            if (HasAny(lower, "compile", "compiling", "build", "building", "rebuild", "msbuild", "build-heavy"))
             {
                 hits.Add("development-build-heavy");
             }
@@ -63,7 +63,7 @@ public static class DeterministicInterpreter
                 hits.Add("development-interactive");
             }
 
-            if (HasAny(lower, "game", "gaming", "play "))
+            if (HasAny(lower, "game", "gaming", "play"))
             {
                 hits.Add("desktop-gaming");
             }
@@ -98,7 +98,7 @@ public static class DeterministicInterpreter
         var suggestRestore = HasAny(lower, "restore", "revert", "put things back");
         var applications = RequestedApplications(normalized);
         var warnings = new List<string>();
-        if (HasAny(lower, "throttle background", "kill ", "terminate", "real-time", "realtime priority"))
+        if (HasAny(lower, "throttle background", "kill", "terminate", "real-time", "realtime priority"))
         {
             warnings.Add("Broad throttling, termination, and Real-time priority are not available from a sentence.");
         }
@@ -180,15 +180,48 @@ public static class DeterministicInterpreter
             found.Add("Virtual Desktop");
         }
 
-        foreach (Match match in Regex.Matches(text, "\"([^\"]{1,128})\""))
+        foreach (Match match in QuotedName.Matches(text))
         {
-            found.Add(match.Groups[1].Value);
+            var name = match.Groups[1].Value;
+            if (name.IndexOfAny(['\\', '/', ':', '*', '?', '"']) >= 0 || name.Contains("..", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            found.Add(name);
         }
 
         return found.Distinct(StringComparer.OrdinalIgnoreCase).Take(IntentLimits.MaxApplications).ToList();
     }
 
-    private static bool Has(string text, string token) => text.Contains(token, StringComparison.Ordinal);
+    private static readonly Regex QuotedName = new("\"([^\"]{1,128})\"", RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static readonly Dictionary<string, Regex> Words = CreateWords(
+        "vrchat", "crowded", "diagnostic", "virtual desktop", "steamvr", "steam vr",
+        "local ai", "local model", "ollama", "llm", "stable diffusion",
+        "compile", "compiling", "build", "building", "rebuild", "msbuild", "build-heavy",
+        "movie", "movies", "media playback", "watching", "plex",
+        "batch", "handbrake", "overnight", "background job",
+        "coding", "visual studio", "debugging", "programming", "interactive development",
+        "game", "gaming", "play",
+        "balanced", "restore", "revert", "put things back", "normal desktop",
+        "permanent", "permanently", "always keep", "keep this",
+        "battery", "quiet", "performance",
+        "frame-time", "frame time", "stutter", "consistency", "throughput", "responsive",
+        "throttle background", "kill", "terminate", "real-time", "realtime priority");
+
+    private static Dictionary<string, Regex> CreateWords(params string[] tokens)
+    {
+        var words = new Dictionary<string, Regex>(tokens.Length, StringComparer.Ordinal);
+        foreach (var token in tokens)
+        {
+            words[token] = new Regex(@"\b" + Regex.Escape(token) + @"\b", RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        }
+
+        return words;
+    }
+
+    private static bool Has(string text, string token) => Words[token].IsMatch(text);
 
     private static bool HasAny(string text, params string[] tokens) => tokens.Any(token => Has(text, token));
 }
@@ -244,7 +277,7 @@ public static class IntentValidator
                 return new Interpretation { Success = false, Explanation = "Model output contained an operational instruction and was rejected." };
             }
 
-            if (!document.RootElement.TryGetProperty("schemaVersion", out var version) || version.ValueKind != JsonValueKind.Number || version.GetInt32() != Schema.Current)
+            if (!document.RootElement.TryGetProperty("schemaVersion", out var version) || version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var schemaVersion) || schemaVersion != Schema.Current)
             {
                 return new Interpretation { Success = false, Explanation = "schemaVersion must be 1." };
             }

@@ -50,12 +50,39 @@ public static class CheckReport
         return Redact(builder.ToString());
     }
 
-    public static string Redact(string text)
+    public static string Redact(string text) => Redact(text, []);
+
+    public static string Redact(string text, IEnumerable<string> extraTokens)
     {
-        var redacted = Regex.Replace(text, @"[A-Za-z]:\\[^\s""']+", "[path]");
-        redacted = Regex.Replace(redacted, @"\\\\[^\s""']+", "[path]");
+        var redacted = DrivePath.Replace(text, "[path]");
+        redacted = UncPath.Replace(redacted, "[path]");
+        foreach (var token in UserTokens(extraTokens))
+        {
+            redacted = Regex.Replace(redacted, Regex.Escape(token), "[user]", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        }
+
         return redacted;
     }
+
+    private static IEnumerable<string> UserTokens(IEnumerable<string> extraTokens)
+    {
+        if (Environment.UserName.Length >= 3)
+        {
+            yield return Environment.UserName;
+        }
+
+        foreach (var token in extraTokens)
+        {
+            if (token is { Length: >= 3 })
+            {
+                yield return token;
+            }
+        }
+    }
+
+    private static readonly Regex DrivePath = new(@"(?<![A-Za-z0-9])[A-Za-z]:[\\/][^""<>|\r\n]*", RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static readonly Regex UncPath = new(@"(?<![A-Za-z0-9:])(?:\\\\|//)[^""<>|\r\n]*", RegexOptions.CultureInvariant | RegexOptions.Compiled);
 }
 
 public static class FailureText
