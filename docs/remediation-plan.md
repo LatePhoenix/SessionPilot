@@ -49,15 +49,15 @@ The owner does not want to be asked about routine repo operations. Do them yours
 
 Branch: `chore/remediation-handoff`. It already exists locally with this plan and `.cursor/rules/remediation-workflow.mdc` committed. It has not been pushed.
 
-- [ ] **0.1 Push the handoff branch together with the CI changes below, open the PR, and merge it.**
-- [ ] **0.2 Harden `.github/workflows/test.yml`.**
+- [x] **0.1 Push the handoff branch together with the CI changes below, open the PR, and merge it.**
+- [x] **0.2 Harden `.github/workflows/test.yml`.**
   - Trigger on `push` to `main` and on `pull_request` targeting `main`.
   - Add `paths-ignore: ['docs/**', '**/*.md', '.cursor/**']` to both triggers so documentation-only changes do not spend a run. Note: the Phase 0 PR changes the workflow file itself, so it still runs.
   - Add top-level `permissions: contents: read`.
   - Add `concurrency: { group: test-${{ github.ref }}, cancel-in-progress: true }`.
   - Pin `actions/checkout` and `actions/setup-dotnet` to full commit SHAs with a trailing `# v4` comment. Resolve each SHA with one `gh api repos/actions/<name>/commits/v4 --jq .sha` call.
   - Keep a single job. Do not add the WiX installer build to CI.
-- [ ] **0.3** Update the last line of `docs/testing.md` to describe the new triggers.
+- [x] **0.3** Update the last line of `docs/testing.md` to describe the new triggers.
 
 Acceptance: the PR's CI run is green and `main` contains the plan.
 
