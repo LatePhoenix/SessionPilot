@@ -96,28 +96,28 @@ Branch: `fix/phase-1-resilience`. Highest priority. A single bad file currently 
 
 Branch: `fix/phase-2-core-correctness`.
 
-- [ ] **2.1 Make path redaction cover every path.** `CheckReport.Redact` (`src/SessionPilot.Core/Diagnostics/CheckReport.cs:53`) stops at the first space. The audit reproduced `C:\Program Files\Process Lasso\prolasso.ini` → `[path] Files\Process Lasso\prolasso.ini`, and `C:/Users/alice/x.ini` was not redacted.
+- [x] **2.1 Make path redaction cover every path.** `CheckReport.Redact` (`src/SessionPilot.Core/Diagnostics/CheckReport.cs:53`) stops at the first space. The audit reproduced `C:\Program Files\Process Lasso\prolasso.ini` → `[path] Files\Process Lasso\prolasso.ini`, and `C:/Users/alice/x.ini` was not redacted.
   - Redact from a drive prefix `(?<![A-Za-z0-9])[A-Za-z]:[\\/]` through the end of the path. Treat everything up to a line break, a quote, `<`, `>`, or `|` as path. Over-redacting trailing words is acceptable; leaking path segments is not.
   - Do the same for UNC paths (`\\server\share...` and `//server/share...`).
   - Also replace the current `Environment.UserName` when it is at least 3 characters, case-insensitive, with `[user]`. Add an overload `Redact(string text, IEnumerable<string> extraTokens)` so tests do not depend on the machine.
   - Tests: spaces in the path, forward slashes, UNC, a path followed by a sentence, a URL `http://example.test/a` that must *not* be redacted, a time `12:30` that must not be redacted, and a supplied user-name token.
   - Keep the existing `CheckReport_RedactsPaths_AndDoesNotSample` test passing.
-- [ ] **2.2 Make trigger dwell work regardless of line order.** The window resets the pending timer from the first signal line while the engine picks by precedence. The audit reproduced signals `balanced` + `desktop-gaming` returning `wait` forever.
+- [x] **2.2 Make trigger dwell work regardless of line order.** The window resets the pending timer from the first signal line while the engine picks by precedence. The audit reproduced signals `balanced` + `desktop-gaming` returning `wait` forever.
   - Move pending-state tracking into Core: a `TriggerTracker` class that holds `PendingLoadoutId` and `PendingSince`, and an `Evaluate(signals, manualLoadoutId, optedIn, now)` method that calls `TriggerSuggestions.Suggest` and updates the state from the decision. Only the engine decides when to reset.
   - `MainWindow.SuggestTrigger` (`MainWindow.xaml.cs:371`) uses the tracker and removes its own `_triggerPendingId` and `_triggerPendingSince` logic.
   - Tests: a lower-precedence first line still reaches `suggest` after `MinimumDwell`. Changing the top signal restarts the dwell. Opt-out still holds.
-- [ ] **2.3 Match whole words in the deterministic interpreter.** `DeterministicInterpreter` (`src/SessionPilot.Core/Planning/Interpretation.cs:17`) has false positives. Reproduced: "adjust display settings" → `desktop-gaming`, and "run diagnostics while coding" → `vrchat-diagnostic`.
+- [x] **2.3 Match whole words in the deterministic interpreter.** `DeterministicInterpreter` (`src/SessionPilot.Core/Planning/Interpretation.cs:17`) has false positives. Reproduced: "adjust display settings" → `desktop-gaming`, and "run diagnostics while coding" → `vrchat-diagnostic`.
   - Replace `Contains` with whole-word or whole-phrase matching: precompiled `Regex` with `\b` boundaries, `RegexOptions.CultureInvariant`. Remove the trailing-space hacks (`"play "`, `"build "`, `"kill "`) and match `\bplay\b`, `\bbuild\b`, `\bkill\b`.
   - `crowded` or `diagnostic` route to `vrchat-diagnostic` only when `vrchat` is also present. Otherwise they fall through to the general matchers.
   - Leave `virtual desktop` → `vrchat-social` as it is.
   - Apply the same path-like-name filter that `IntentValidator` uses (`\ / : * ? "` and `..`) to quoted names in `RequestedApplications`.
   - Tests: the two reproduced phrases, "display" alone, "rebuild the solution" still matching `development-build-heavy` (add `rebuild` as its own token), and that all existing interpreter `InlineData` cases still pass. Do not change them.
-- [ ] **2.4 Fix temp-file cleanup when a replace fails.** `SameVolumeFileReplacer.Replace` (`Transactions.cs:12`) copies `ReadOnly` onto the temp file, so the cleanup `File.Delete` throws and hides the real error. Reproduced: `UnauthorizedAccessException` naming the `.tmp` file, with the temp file left behind.
+- [x] **2.4 Fix temp-file cleanup when a replace fails.** `SameVolumeFileReplacer.Replace` (`Transactions.cs:12`) copies `ReadOnly` onto the temp file, so the cleanup `File.Delete` throws and hides the real error. Reproduced: `UnauthorizedAccessException` naming the `.tmp` file, with the temp file left behind.
   - If the target has `ReadOnly`, throw `IOException("The target is read-only.")` before writing a temp file.
   - Copy attributes with `ReadOnly` masked out.
   - In `finally`, reset the temp file's attributes to `Normal`, then delete it inside its own try/catch, so cleanup never replaces the original exception.
   - Tests: with a read-only target, the coordinator returns `failed` with a read-only message and no `.sessionpilot-*.tmp` remains. Restore attributes in test cleanup.
-- [ ] **2.5 Check `schemaVersion` without throwing.** In `IntentValidator.ValidateJson` (`Interpretation.cs:247`), use `version.TryGetInt32(out var v) && v == Schema.Current`. Test: `1.5`, `1e30`, and `"1"` each return a failed interpretation and do not throw.
+- [x] **2.5 Check `schemaVersion` without throwing.** In `IntentValidator.ValidateJson` (`Interpretation.cs:247`), use `version.TryGetInt32(out var v) && v == Schema.Current`. Test: `1.5`, `1e30`, and `"1"` each return a failed interpretation and do not throw.
 
 ---
 
