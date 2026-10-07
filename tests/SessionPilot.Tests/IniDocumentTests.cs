@@ -66,6 +66,53 @@ public class IniDocumentTests
         Assert.False(edited.Succeeded);
     }
 
+    [Fact]
+    public void SpacedValue_KeepsItsWhitespace_AndAnUneditedFileRoundTrips()
+    {
+        var bytes = Encoding.UTF8.GetBytes("[Custom]\r\nAlpha = old \r\n");
+        var document = IniDocument.Parse(bytes);
+        Assert.Equal(bytes, document.Serialize());
+        var edited = document.Apply([new IniEdit { Section = "Custom", Key = "Alpha", Value = "new" }]);
+        Assert.True(edited.Succeeded);
+        Assert.Contains("Alpha = new \r\n", Encoding.UTF8.GetString(edited.Document.Serialize()), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Encoding_RejectsValuesItCannotStore()
+    {
+        var latin = IniDocument.Parse(Encoding.GetEncoding(28591).GetBytes("[Custom]\r\nAlpha=caf\u00e9\r\n"));
+        Assert.Equal(TextEncoding.Latin1, latin.Encoding);
+        var rejected = latin.Apply([new IniEdit { Section = "Custom", Key = "Alpha", Value = "日本" }]);
+        Assert.False(rejected.Succeeded);
+        Assert.Contains("Latin1", rejected.Message, StringComparison.Ordinal);
+        Assert.True(latin.Apply([new IniEdit { Section = "Custom", Key = "Alpha", Value = "é" }]).Succeeded);
+        var utf = IniDocument.Parse("[Custom]\r\nAlpha=one\r\n", TextEncoding.Utf8);
+        Assert.True(utf.Apply([new IniEdit { Section = "Custom", Key = "Alpha", Value = "日本" }]).Succeeded);
+    }
+
+    [Fact]
+    public void DuplicateEdit_IsRejected()
+    {
+        var document = IniDocument.Parse("[Custom]\r\nAlpha=one\r\n");
+        var edited = document.Apply(
+        [
+            new IniEdit { Section = "Custom", Key = "Alpha", Value = "two" },
+            new IniEdit { Section = "custom", Key = "alpha", Value = "three" }
+        ]);
+        Assert.False(edited.Succeeded);
+        Assert.Contains("edited more than once", edited.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NewInlineComment_IsRejected()
+    {
+        var document = IniDocument.Parse("[Custom]\r\nAlpha=one\r\n");
+        var edited = document.Apply([new IniEdit { Section = "Custom", Key = "Alpha", Value = "two ; hidden" }]);
+        Assert.False(edited.Succeeded);
+        Assert.Contains("inline comment", edited.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("one", document.Find("Custom", "Alpha").Line!.Value);
+    }
+
     private static byte[] EncodeUtf16(string text)
     {
         var body = Encoding.Unicode.GetBytes(text);

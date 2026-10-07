@@ -78,6 +78,27 @@ public class TransactionAndSafetyTests
     }
 
     [Fact]
+    public void SpacedEdit_StaysRestorable()
+    {
+        using var dir = new TempWorkspace();
+        var target = dir.Write("config.ini", "[Custom]\r\nAlpha = old\r\n");
+        var applied = new TransactionCoordinator().Apply(new ApplyRequest
+        {
+            TargetPath = target,
+            ExpectedBaselineHash = ContentHashing.Sha256(File.ReadAllBytes(target)),
+            Approved = true,
+            JournalDirectory = dir.Journal,
+            Edits = [new IniEdit { Section = "Custom", Key = "Alpha", Value = "new" }]
+        });
+        Assert.Equal("completed-isolated", applied.Status);
+        Assert.Contains("Alpha = new", File.ReadAllText(target), StringComparison.Ordinal);
+        var baseline = IniDocument.Parse(File.ReadAllBytes(applied.BackupPath!));
+        var written = IniDocument.Parse(File.ReadAllBytes(target));
+        var analysis = RestorePlanner.Analyze(baseline, written, written, applied.OwnedValues);
+        Assert.Single(analysis.Restorable);
+    }
+
+    [Fact]
     public void ReplacerMismatch_IsFailureWithoutClaimingSuccess()
     {
         using var dir = new TempWorkspace();
