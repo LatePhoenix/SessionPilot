@@ -39,10 +39,10 @@ public partial class MainWindow : Window
             _window.Close();
             _samples.Stop();
         };
-        Loaded += (_, _) => LoadShell();
+        Loaded += async (_, _) => await LoadShell();
     }
 
-    private void LoadShell()
+    private async Task LoadShell()
     {
         var installation = LiveDiscovery.Installation();
         var hardware = LiveDiscovery.Hardware();
@@ -63,7 +63,7 @@ public partial class MainWindow : Window
         ApplyStatus();
         var recovery = StartupRecovery.DescribeIncomplete(AppPaths.JournalDirectory);
         DashboardBody.Text += Environment.NewLine + Environment.NewLine + "Startup recovery:" + Environment.NewLine + string.Join(Environment.NewLine, recovery);
-        var listing = PowerPlanReader.TryList();
+        var listing = await PowerPlanReader.TryListAsync();
         var plans = listing is null ? [] : PowerPlanParser.Parse(listing);
         PowerPlans.Text = plans.Count == 0
             ? "Power plans: unavailable. Nothing was switched."
@@ -472,7 +472,7 @@ public partial class MainWindow : Window
             ApprovedArguments = arguments,
             PromptText = PromptBox.Text,
             AlreadyRunning = AlreadyRunning.IsChecked == true
-        }, new ShellStarter(), readinessTimedOut: false);
+        }, new ShellProcessStarter(), readinessTimedOut: false);
         LaunchResultText.Text = result.Detail + Environment.NewLine + _session.RelaunchNote() +
                                 Environment.NewLine + "Owned: " + _session.Owned.Count + ". Already running: " + _session.AlreadyRunning.Count + ".";
     }
@@ -591,33 +591,3 @@ public partial class MainWindow : Window
     }
 }
 
-internal sealed class LiveWindowCloser(Process process) : ICloseRequest
-{
-    public bool HasMainWindow => process.MainWindowHandle != IntPtr.Zero;
-
-    public bool TryCloseMainWindow() => process.CloseMainWindow();
-}
-
-internal sealed class ShellStarter : IProcessStarter
-{
-    public bool Start(string pathOrUri, IReadOnlyList<string> arguments)
-    {
-        try
-        {
-            var info = new ProcessStartInfo
-            {
-                FileName = pathOrUri,
-                UseShellExecute = true,
-                Arguments = string.Join(" ", arguments.Select(Quote))
-            };
-            return Process.Start(info) is not null;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
-    }
-
-    private static string Quote(string argument) =>
-        argument.Contains(' ', StringComparison.Ordinal) ? "\"" + argument.Replace("\"", "", StringComparison.Ordinal) + "\"" : argument;
-}

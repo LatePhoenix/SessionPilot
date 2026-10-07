@@ -1,3 +1,5 @@
+using SessionPilot.Infrastructure;
+
 namespace SessionPilot.Tests;
 
 public class PowerAndGuidanceTests
@@ -15,6 +17,40 @@ public class PowerAndGuidanceTests
         Assert.Equal("Balanced", plans[0].Name);
         Assert.True(plans[0].Active);
         Assert.False(plans[1].Active);
+    }
+
+    [Fact]
+    public void Parser_ReadsANonEnglishLine_AndIgnoresLinesWithoutAGuid()
+    {
+        var plans = PowerPlanParser.Parse("""
+            Energieschemata (* Aktiv)
+            GUID des Energieschemas: 381b4222-f694-41f0-9685-ff5bb260df2e  (Ausbalanciert) *
+            no scheme on this line
+            """);
+
+        var plan = Assert.Single(plans);
+        Assert.Equal("381b4222-f694-41f0-9685-ff5bb260df2e", plan.Guid);
+        Assert.Equal("Ausbalanciert", plan.Name);
+        Assert.True(plan.Active);
+    }
+
+    [Fact]
+    public void PowerCfgStartInfo_UsesTheSystemBinary_AndDoesNotRedirectError()
+    {
+        var info = PowerPlanReader.CreateListStartInfo();
+        Assert.Equal(Path.Combine(Environment.SystemDirectory, "powercfg.exe"), info.FileName);
+        Assert.True(info.RedirectStandardOutput);
+        Assert.False(info.RedirectStandardError);
+        Assert.False(info.UseShellExecute);
+    }
+
+    [Fact]
+    public void ShellArguments_RoundTripThroughArgumentList()
+    {
+        var info = ShellProcessStarter.CreateStartInfo("https://example.test", ["has space", "say \"hi\"", @"C:\temp\", ""]);
+        Assert.True(info.UseShellExecute);
+        Assert.Equal("https://example.test", info.FileName);
+        Assert.Equal(["has space", "say \"hi\"", @"C:\temp\", ""], info.ArgumentList);
     }
 
     [Fact]
