@@ -1,23 +1,269 @@
-using System.Text;
+using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+using System.Windows.Threading;
+using SessionPilot.Core;
+using SessionPilot.Infrastructure;
 
 namespace SessionPilot.App;
 
-/// <summary>
-/// Interaction logic for MainWindow.xaml
-/// </summary>
 public partial class MainWindow : Window
 {
+    private readonly DispatcherTimer _samples = new() { Interval = RollingSampleWindow<int>.DefaultInterval };
+    private readonly RollingSampleWindow<CpuObservation> _window = new();
+    private readonly Dictionary<string, TimeSpan> _previousCpu = new();
+    private readonly Stopwatch _sampleClock = new();
+    private LoadoutCatalog? _catalog;
+    private CompiledPlan? _plan;
+    private HonestStatus _status = new();
+    private int _logicalProcessors;
+    private int _samplesTaken;
+
     public MainWindow()
     {
         InitializeComponent();
+        _samples.Tick += SampleTick;
+        Closed += (_, _) =>
+        {
+            _window.Close();
+            _samples.Stop();
+        };
+        Loaded += (_, _) => LoadShell();
+    }
+
+    private void LoadShell()
+    {
+        var installation = LiveDiscovery.Installation();
+        var hardware = LiveDiscovery.Hardware();
+        _logicalProcessors = hardware.Confidence == DiscoveryConfidence.None ? 0 : hardware.LogicalProcessorCount;
+        var presetDirectory = Path.Combine(AppContext.BaseDirectory, "presets");
+        _catalog = LoadoutCatalog.Load(presetDirectory, AppPaths.LoadoutDirectory);
+        LoadoutList.ItemsSource = _catalog.All.Select(loadout => loadout.DisplayName).ToList();
+        DashboardBody.Text = DescribeInstallation(installation, hardware);
+        GuidedBody.Text = string.Join(Environment.NewLine + Environment.NewLine, GuidedWorkflows.All.Select(workflow =>
+            workflow.Title + " (" + workflow.Mode + ")" + Environment.NewLine +
+            string.Join(Environment.NewLine, workflow.Steps.Select(step => "• " + step.Title + ": " + step.Instruction)) +
+            Environment.NewLine + workflow.Note));
+        ApplyStatus();
+        ShowPage(PageDashboard, NavDashboard, "Dashboard");
+    }
+
+    private static string DescribeInstallation(ProcessLassoInstallation installation, HardwareInventory hardware)
+    {
+        var hardwareText = hardware.Confidence == DiscoveryConfidence.None
+            ? "Hardware: unavailable"
+            : "Hardware: " + hardware.LogicalProcessorCount + " logical processors (" + hardware.Confidence + ")";
+        return "Process Lasso version: " + (installation.ProductVersion ?? "not observed") + Environment.NewLine +
+               "Confirmed config: none. " + InstallationCandidates.NotActiveLimitation + Environment.NewLine +
+               "Candidates: " + installation.ConfigCandidates.Count + Environment.NewLine +
+               hardwareText + Environment.NewLine +
+               "GPU: unavailable" + Environment.NewLine +
+               "Performance effect: not-measured";
+    }
+
+    private void ShowDashboard(object sender, RoutedEventArgs e) => ShowPage(PageDashboard, NavDashboard, "Dashboard");
+    private void ShowDiagnostics(object sender, RoutedEventArgs e)
+    {
+        ShowPage(PageDiagnostics, NavDiagnostics, "Diagnostics");
+        if (!_samples.IsEnabled && _window.ShouldTakeSample(_samplesTaken))
+        {
+            _sampleClock.Restart();
+            _samples.Start();
+        }
+    }
+
+    private void ShowLoadouts(object sender, RoutedEventArgs e) => ShowPage(PageLoadouts, NavLoadouts, "Loadouts");
+    private void ShowPrompt(object sender, RoutedEventArgs e) => ShowPage(PagePrompt, NavPrompt, "Prompt");
+    private void ShowPlan(object sender, RoutedEventArgs e) => ShowPage(PagePlan, NavPlan, "Plan review");
+
+    private void ShowPage(UIElement page, Button active, string title)
+    {
+        PageDashboard.Visibility = Visibility.Collapsed;
+        PageDiagnostics.Visibility = Visibility.Collapsed;
+        PageLoadouts.Visibility = Visibility.Collapsed;
+        PagePrompt.Visibility = Visibility.Collapsed;
+        PagePlan.Visibility = Visibility.Collapsed;
+        page.Visibility = Visibility.Visible;
+        PageTitle.Text = title;
+        foreach (var button in new[] { NavDashboard, NavDiagnostics, NavLoadouts, NavPrompt, NavPlan })
+        {
+            button.Background = Brushes.Transparent;
+        }
+
+        active.Background = new SolidColorBrush(Color.FromRgb(0x1F, 0x5F, 0xAF));
+        if (page != PageDiagnostics)
+        {
+            _samples.Stop();
+        }
+    }
+
+    private void SampleTick(object? sender, EventArgs e)
+    {
+        if (!_window.ShouldTakeSample(_samplesTaken))
+        {
+            _samples.Stop();
+            return;
+        }
+
+        var started = Stopwatch.GetTimestamp();
+        var rows = new List<ProcessRow>();
+        var wall = _sampleClock.Elapsed;
+        _sampleClock.Restart();
+        foreach (var process in Process.GetProcesses())
+        {
+            try
+            {
+                rows.Add(ReadRow(process, wall));
+            }
+            catch (Exception)
+            {
+                rows.Add(new ProcessRow { Name = "unknown", Pid = process.Id.ToString(), Access = "access-denied", Cpu = "unavailable", WorkingSet = "unavailable", Classification = "Unknown", Created = "unavailable" });
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        var duration = Stopwatch.GetElapsedTime(started);
+        var observation = ProcessorTimeSeries.Observe(null, null, wall, _logicalProcessors, duration);
+        _window.TryAdd(observation);
+        _samplesTaken++;
+        ProcessList.ItemsSource = rows.OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        DiagnosticsMeta.Text = "Samples " + _window.Count + "/" + _window.Capacity +
+                               " at " + (int)RollingSampleWindow<int>.DefaultInterval.TotalSeconds + "s. Collector " +
+                               duration.TotalMilliseconds.ToString("0") + " ms. Logical processors: " +
+                               (_logicalProcessors < 1 ? "unavailable" : _logicalProcessors.ToString()) + ".";
+        if (!_window.ShouldTakeSample(_samplesTaken))
+        {
+            _samples.Stop();
+        }
+    }
+
+    private ProcessRow ReadRow(Process process, TimeSpan wall)
+    {
+        var name = process.ProcessName;
+        DateTimeOffset? created = null;
+        long? workingSet = null;
+        TimeSpan? cpu = null;
+        var access = "ok";
+        try
+        {
+            created = new DateTimeOffset(DateTime.SpecifyKind(process.StartTime, DateTimeKind.Local));
+            cpu = process.TotalProcessorTime;
+            workingSet = process.WorkingSet64;
+        }
+        catch (InvalidOperationException)
+        {
+            access = "exited";
+        }
+        catch (Exception)
+        {
+            access = "access-denied";
+        }
+
+        var key = process.Id + "|" + (created?.UtcTicks.ToString() ?? "none");
+        TimeSpan? previous = _previousCpu.TryGetValue(key, out var stored) ? stored : null;
+        if (cpu is not null && access == "ok")
+        {
+            _previousCpu[key] = cpu.Value;
+        }
+
+        var observation = ProcessorTimeSeries.Observe(previous, access == "ok" ? cpu : null, wall, _logicalProcessors, TimeSpan.Zero);
+        var memory = MemoryReadings.FromWorkingSet(access == "ok" ? workingSet : null);
+        var preview = CleanupClassifier.Classify(name, protectedParticipant: false, observation.FractionOfLogicalCapacity);
+        return new ProcessRow
+        {
+            Name = name,
+            Pid = process.Id.ToString(),
+            Created = created?.ToString("yyyy-MM-dd HH:mm:ss") ?? "unavailable",
+            Access = access,
+            Cpu = FormatCpu(observation),
+            WorkingSet = memory.WorkingSetBytes is null ? "unavailable" : memory.WorkingSetBytes.Value.ToString("N0") + " bytes",
+            Classification = preview.Classification.ToString()
+        };
+    }
+
+    private static string FormatCpu(CpuObservation observation)
+    {
+        if (observation.FractionOfLogicalCapacity is null || observation.LogicalCoreEquivalents is null)
+        {
+            return "unavailable";
+        }
+
+        return observation.FractionOfLogicalCapacity.Value.ToString("0.0%") + " of logical capacity (" +
+               observation.LogicalCoreEquivalents.Value.ToString("0.00") + " logical cores)";
+    }
+
+    private void LoadoutSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (_catalog is null || LoadoutList.SelectedIndex < 0)
+        {
+            return;
+        }
+
+        var loadout = _catalog.All[LoadoutList.SelectedIndex];
+        LoadoutDetail.Text = loadout.DisplayName + Environment.NewLine + loadout.Summary + Environment.NewLine +
+                             string.Join(Environment.NewLine, loadout.Notes);
+        Compile(loadout, new UserIntent
+        {
+            LoadoutId = loadout.Id,
+            Objective = loadout.Objective,
+            SessionMode = loadout.SessionMode,
+            PowerPreference = loadout.PowerPreference,
+            BackgroundPolicy = loadout.BackgroundPolicy,
+            RequestedApplications = []
+        });
+    }
+
+    private void InterpretPrompt(object sender, RoutedEventArgs e)
+    {
+        if (_catalog is null)
+        {
+            return;
+        }
+
+        var interpretation = DeterministicInterpreter.Interpret(PromptBox.Text);
+        PromptResult.Text = interpretation.Explanation;
+        if (!interpretation.Success || interpretation.Intent is null || !_catalog.TryGet(interpretation.Intent.LoadoutId, out var loadout))
+        {
+            return;
+        }
+
+        PromptResult.Text += Environment.NewLine + "Presets work without Ollama. Nothing was written.";
+        Compile(loadout, interpretation.Intent);
+    }
+
+    private void Compile(Loadout loadout, UserIntent intent)
+    {
+        _plan = PlanCompiler.Compile(new CompileInput { Intent = intent, Loadout = loadout });
+        _status = _status with { Compiled = "compiled (dry run)" };
+        ApplyStatus();
+        PagePlan.ItemsSource = _plan.Changes.Select(change =>
+            change.TargetIdentity + "  " + change.ExistingValue + " → " + change.ProposedValue +
+            Environment.NewLine + change.Rationale + Environment.NewLine +
+            change.SupportStatus + "  writable=" + change.Writable).ToList();
+    }
+
+    private void ApplyStatus()
+    {
+        StatusCompiled.Text = _status.Compiled;
+        StatusPersisted.Text = _status.Persisted;
+        StatusGovernor.Text = _status.Governor;
+        StatusEffective.Text = _status.EffectiveSetting;
+        StatusPerformance.Text = _status.PerformanceEffect;
+    }
+
+    private sealed class ProcessRow
+    {
+        public string Name { get; init; } = "";
+        public string Pid { get; init; } = "";
+        public string Created { get; init; } = "";
+        public string Access { get; init; } = "";
+        public string Cpu { get; init; } = "";
+        public string WorkingSet { get; init; } = "";
+        public string Classification { get; init; } = "";
     }
 }

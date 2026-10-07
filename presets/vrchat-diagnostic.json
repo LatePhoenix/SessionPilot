@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "vrchat-diagnostic",
+  "displayName": "VRChat crowded diagnostic",
+  "summary": "Guided avatar and graphics comparison for a crowded VRChat instance. This does not measure frame rate and does not change Process Lasso.",
+  "objective": "frame-time-consistency",
+  "sessionMode": "temporary",
+  "powerPreference": "performance",
+  "backgroundPolicy": "preserve",
+  "offerPerformanceMode": true,
+  "offerEfficiencyModeOff": true,
+  "priorityPolicy": "unchanged",
+  "cpuPlacementPolicy": "unchanged",
+  "proBalancePolicy": "preserve",
+  "requiresExplicitWorkers": false,
+  "participantRoles": ["game", "compositor", "streaming", "audio", "companion"],
+  "notes": [
+    "Compare one change at a time: quiet world, crowded world, avatar policy, or cleanup.",
+    "Use the VRChat configuration window for avatar rank, max shown avatars, hide-beyond distance, graphics profile, MSAA, and mirrors.",
+    "Performance effect stays not measured until a real import exists."
+  ]
+}

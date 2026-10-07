@@ -1,12 +1,107 @@
 <Window x:Class="SessionPilot.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:SessionPilot.App"
-        mc:Ignorable="d"
-        Title="SessionPilot" Height="450" Width="800">
+        Title="SessionPilot"
+        Height="760"
+        Width="1180"
+        MinHeight="560"
+        MinWidth="880"
+        Background="#0F1722"
+        Foreground="#EAF1F8"
+        FontFamily="Segoe UI"
+        WindowStartupLocation="CenterScreen">
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
 
+        <Border Grid.Column="0" Background="#161F2D" BorderBrush="#2C3A4D" BorderThickness="0,0,1,0" Padding="8,16,8,12">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Text="SESSIONPILOT" FontSize="14" FontWeight="SemiBold" Margin="12,0,12,4"/>
+                    <TextBlock Text="Unprivileged" Foreground="#9FB0C3" Margin="12,0,12,16" FontSize="12"/>
+                </StackPanel>
+                <TextBlock DockPanel.Dock="Bottom" Text="Live Process Lasso writes are disabled." Foreground="#9FB0C3" TextWrapping="Wrap" Margin="12,16,12,0" FontSize="12"/>
+                <StackPanel>
+                    <Button x:Name="NavDashboard" Content="Dashboard" Style="{StaticResource NavButton}" Click="ShowDashboard"/>
+                    <Button x:Name="NavDiagnostics" Content="Diagnostics" Style="{StaticResource NavButton}" Click="ShowDiagnostics"/>
+                    <Button x:Name="NavLoadouts" Content="Loadouts" Style="{StaticResource NavButton}" Click="ShowLoadouts"/>
+                    <Button x:Name="NavPrompt" Content="Prompt" Style="{StaticResource NavButton}" Click="ShowPrompt"/>
+                    <Button x:Name="NavPlan" Content="Plan review" Style="{StaticResource NavButton}" Click="ShowPlan"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <DockPanel Grid.Column="1" Margin="20,16,20,16">
+            <TextBlock x:Name="PageTitle" DockPanel.Dock="Top" Text="Dashboard" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,12"/>
+            <Border DockPanel.Dock="Top" Background="#161F2D" BorderBrush="#2C3A4D" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,0,12">
+                <UniformGrid Columns="5">
+                    <StackPanel Margin="4">
+                        <TextBlock Text="COMPILED" Foreground="#9FB0C3" FontSize="11"/>
+                        <TextBlock x:Name="StatusCompiled" Text="not compiled" FontFamily="Cascadia Mono, Consolas"/>
+                    </StackPanel>
+                    <StackPanel Margin="4">
+                        <TextBlock Text="PERSISTED" Foreground="#9FB0C3" FontSize="11"/>
+                        <TextBlock x:Name="StatusPersisted" Text="not-written" FontFamily="Cascadia Mono, Consolas"/>
+                    </StackPanel>
+                    <StackPanel Margin="4">
+                        <TextBlock Text="GOVERNOR" Foreground="#9FB0C3" FontSize="11"/>
+                        <TextBlock x:Name="StatusGovernor" Text="not-verified" FontFamily="Cascadia Mono, Consolas"/>
+                    </StackPanel>
+                    <StackPanel Margin="4">
+                        <TextBlock Text="EFFECTIVE" Foreground="#9FB0C3" FontSize="11"/>
+                        <TextBlock x:Name="StatusEffective" Text="not-observed" FontFamily="Cascadia Mono, Consolas"/>
+                    </StackPanel>
+                    <StackPanel Margin="4">
+                        <TextBlock Text="PERFORMANCE" Foreground="#9FB0C3" FontSize="11"/>
+                        <TextBlock x:Name="StatusPerformance" Text="not-measured" FontFamily="Cascadia Mono, Consolas"/>
+                    </StackPanel>
+                </UniformGrid>
+            </Border>
+
+            <Grid>
+                <ScrollViewer x:Name="PageDashboard" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock x:Name="DashboardBody" TextWrapping="Wrap" LineHeight="20"/>
+                        <TextBlock Text="Guided workflows" FontWeight="SemiBold" Margin="0,16,0,8"/>
+                        <TextBlock x:Name="GuidedBody" TextWrapping="Wrap" Foreground="#9FB0C3"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <DockPanel x:Name="PageDiagnostics" Visibility="Collapsed">
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <TextBlock x:Name="DiagnosticsMeta" Foreground="#9FB0C3" TextWrapping="Wrap"/>
+                        <TextBlock Text="GPU engine counters are unavailable. Working set is not memory pressure. High CPU does not authorize a close." Foreground="#9FB0C3" TextWrapping="Wrap" Margin="0,4,0,8"/>
+                    </StackPanel>
+                    <ListView x:Name="ProcessList">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Name" DisplayMemberBinding="{Binding Name}" Width="160"/>
+                                <GridViewColumn Header="PID" DisplayMemberBinding="{Binding Pid}" Width="70"/>
+                                <GridViewColumn Header="Created" DisplayMemberBinding="{Binding Created}" Width="180"/>
+                                <GridViewColumn Header="Access" DisplayMemberBinding="{Binding Access}" Width="110"/>
+                                <GridViewColumn Header="CPU" DisplayMemberBinding="{Binding Cpu}" Width="220"/>
+                                <GridViewColumn Header="Working set" DisplayMemberBinding="{Binding WorkingSet}" Width="140"/>
+                                <GridViewColumn Header="Class" DisplayMemberBinding="{Binding Classification}" Width="160"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </DockPanel>
+
+                <DockPanel x:Name="PageLoadouts" Visibility="Collapsed">
+                    <ListBox x:Name="LoadoutList" DockPanel.Dock="Left" Width="280" Margin="0,0,12,0" SelectionChanged="LoadoutSelected"/>
+                    <TextBlock x:Name="LoadoutDetail" TextWrapping="Wrap" LineHeight="20"/>
+                </DockPanel>
+
+                <DockPanel x:Name="PagePrompt" Visibility="Collapsed">
+                    <Button DockPanel.Dock="Top" Content="Interpret" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Margin="0,0,0,8" Click="InterpretPrompt"/>
+                    <TextBlock DockPanel.Dock="Bottom" x:Name="PromptResult" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                    <TextBox x:Name="PromptBox" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                </DockPanel>
+
+                <ListBox x:Name="PagePlan" Visibility="Collapsed"/>
+            </Grid>
+        </DockPanel>
     </Grid>
 </Window>

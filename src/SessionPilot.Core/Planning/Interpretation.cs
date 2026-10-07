@@ -24,7 +24,15 @@ public static class DeterministicInterpreter
 
         var lower = normalized.ToLowerInvariant();
         var hits = new List<string>();
-        if (Has(lower, "vrchat") && (Has(lower, "steamvr") || Has(lower, "steam vr")))
+        if (Has(lower, "crowded") || Has(lower, "diagnostic"))
+        {
+            hits.Add("vrchat-diagnostic");
+        }
+        else if (Has(lower, "virtual desktop"))
+        {
+            hits.Add("vrchat-social");
+        }
+        else if (Has(lower, "vrchat") && (Has(lower, "steamvr") || Has(lower, "steam vr")))
         {
             hits.Add("vrchat-steamvr");
         }
@@ -139,7 +147,7 @@ public static class DeterministicInterpreter
 
         return loadoutId switch
         {
-            "vrchat-steamvr" or "desktop-gaming" => Names.FrameTimeConsistency,
+            "vrchat-steamvr" or "vrchat-social" or "vrchat-diagnostic" or "desktop-gaming" => Names.FrameTimeConsistency,
             "development-build-heavy" or "development-local-ai" or "background-batch" => Names.Throughput,
             "development-interactive" => Names.Responsiveness,
             "media-playback" => Names.QuietBalanced,
@@ -149,7 +157,7 @@ public static class DeterministicInterpreter
 
     private static string DefaultPower(string loadoutId) => loadoutId switch
     {
-        "vrchat-steamvr" or "desktop-gaming" => Names.Performance,
+        "vrchat-steamvr" or "vrchat-social" or "vrchat-diagnostic" or "desktop-gaming" => Names.Performance,
         "media-playback" or "balanced" => Names.Balanced,
         _ => Names.Balanced
     };
@@ -165,6 +173,11 @@ public static class DeterministicInterpreter
         if (text.Contains("SteamVR", StringComparison.OrdinalIgnoreCase) || text.Contains("Steam VR", StringComparison.OrdinalIgnoreCase))
         {
             found.Add("SteamVR");
+        }
+
+        if (text.Contains("Virtual Desktop", StringComparison.OrdinalIgnoreCase))
+        {
+            found.Add("Virtual Desktop");
         }
 
         foreach (Match match in Regex.Matches(text, "\"([^\"]{1,128})\""))

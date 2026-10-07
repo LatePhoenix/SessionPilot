@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "vrchat-social",
+  "displayName": "VRChat social",
+  "summary": "Favor frame-time consistency for a social VRChat session, including Virtual Desktop. This requests a policy; it does not claim higher frame rates.",
+  "objective": "frame-time-consistency",
+  "sessionMode": "temporary",
+  "powerPreference": "performance",
+  "backgroundPolicy": "preserve",
+  "offerPerformanceMode": true,
+  "offerEfficiencyModeOff": true,
+  "priorityPolicy": "unchanged",
+  "cpuPlacementPolicy": "unchanged",
+  "proBalancePolicy": "preserve",
+  "requiresExplicitWorkers": false,
+  "participantRoles": ["game", "compositor", "streaming", "audio", "companion"],
+  "notes": [
+    "Confirm the game, stream, audio path, and companion tools before treating them as participants.",
+    "Virtual Desktop overlay values are recorded by the user. SessionPilot does not call a settings API.",
+    "ProBalance is preserved. Priority and CPU placement stay unchanged."
+  ]
+}

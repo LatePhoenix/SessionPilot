@@ -32,6 +32,8 @@ public static class TriggerEngine
 {
     private static readonly string[] Precedence =
     [
+        "vrchat-diagnostic",
+        "vrchat-social",
         "vrchat-steamvr",
         "desktop-gaming",
         "development-local-ai",
