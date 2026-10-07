@@ -90,4 +90,11 @@ public static class PowerOwnership
             Detail = "An export is noted, but this build does not switch power plans."
         };
     }
+
+    public static PowerDecision Clear() => new()
+    {
+        Owner = PowerOwnerKind.Unset,
+        Switched = false,
+        Detail = "The recorded owner was cleared. Nothing was switched."
+    };
 }

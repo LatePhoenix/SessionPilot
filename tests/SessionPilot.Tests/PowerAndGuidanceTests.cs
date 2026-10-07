@@ -64,6 +64,10 @@ public class PowerAndGuidanceTests
         Assert.Equal(PowerOwnerKind.ProcessLasso, conflict.Owner);
         Assert.False(conflict.Switched);
         Assert.Contains("second power writer", conflict.Detail, StringComparison.OrdinalIgnoreCase);
+        var cleared = PowerOwnership.Clear();
+        Assert.Equal(PowerOwnerKind.Unset, cleared.Owner);
+        Assert.False(cleared.Switched);
+        Assert.Equal("The recorded owner was cleared. Nothing was switched.", cleared.Detail);
     }
 
     [Fact]

@@ -118,6 +118,49 @@ public sealed class SessionCoordinator
 
     public void ChooseManually(string loadoutId) => ManualLoadoutId = loadoutId;
 
+    public void ClearManualSelection() => ManualLoadoutId = null;
+
+    public SessionPhase? NextPhase(bool planCompiled, out string reason)
+    {
+        switch (Phase)
+        {
+            case SessionPhase.Idle:
+                reason = "Press Begin to start a session.";
+                return null;
+            case SessionPhase.AwaitingApproval when !planCompiled:
+                reason = "Compile a plan before preparing.";
+                return null;
+            case SessionPhase.Completed or SessionPhase.Cancelled or SessionPhase.Failed
+                or SessionPhase.PartiallyApplied or SessionPhase.RecoveryRequired:
+                reason = "Press Begin to start again.";
+                return null;
+            case SessionPhase.Discovering:
+                reason = "";
+                return SessionPhase.Observing;
+            case SessionPhase.Observing:
+                reason = "";
+                return SessionPhase.Planning;
+            case SessionPhase.Planning:
+                reason = "";
+                return SessionPhase.AwaitingApproval;
+            case SessionPhase.AwaitingApproval:
+                reason = "";
+                return SessionPhase.Preparing;
+            case SessionPhase.Preparing:
+                reason = "";
+                return SessionPhase.Active;
+            case SessionPhase.Active:
+                reason = "";
+                return SessionPhase.Restoring;
+            case SessionPhase.Restoring:
+                reason = "";
+                return SessionPhase.Completed;
+            default:
+                reason = "Press Begin to start again.";
+                return null;
+        }
+    }
+
     public bool TryApplyTrigger(string loadoutId, out string reason)
     {
         if (ManualLoadoutId is not null)

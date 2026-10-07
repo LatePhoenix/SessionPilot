@@ -73,6 +73,7 @@
                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                             <Button Content="Record Process Lasso" Style="{StaticResource PrimaryButton}" Click="RecordProcessLassoPower"/>
                             <Button Content="Record Windows" Margin="8,0,0,0" Style="{StaticResource PrimaryButton}" Click="RecordWindowsPower"/>
+                            <Button Content="Clear recorded owner" Margin="8,0,0,0" Style="{StaticResource PrimaryButton}" Click="ClearRecordedOwner"/>
                         </StackPanel>
                         <TextBlock x:Name="PowerDecisionText" TextWrapping="Wrap" Margin="0,8,0,0"/>
                         <TextBlock Text="Triggers" FontWeight="SemiBold" Margin="0,16,0,8"/>
@@ -111,7 +112,10 @@
 
                 <DockPanel x:Name="PageLoadouts" Visibility="Collapsed">
                     <ListBox x:Name="LoadoutList" DockPanel.Dock="Left" Width="280" Margin="0,0,12,0" SelectionChanged="LoadoutSelected"/>
-                    <TextBlock x:Name="LoadoutDetail" TextWrapping="Wrap" LineHeight="20"/>
+                    <StackPanel>
+                        <Button Content="Clear manual selection" HorizontalAlignment="Left" Style="{StaticResource PrimaryButton}" Click="ClearManualLoadout"/>
+                        <TextBlock x:Name="LoadoutDetail" TextWrapping="Wrap" LineHeight="20" Margin="0,12,0,0"/>
+                    </StackPanel>
                 </DockPanel>
 
                 <DockPanel x:Name="PagePrompt" Visibility="Collapsed">
@@ -160,7 +164,10 @@
                         <TextBox x:Name="MeasurementLabel"/>
                         <TextBlock Text="Confounders" Foreground="#9FB0C3" Margin="0,8,0,4"/>
                         <TextBox x:Name="MeasurementConfounders" AcceptsReturn="True" Height="72"/>
-                        <Button Content="Record run" HorizontalAlignment="Left" Margin="0,8,0,8" Style="{StaticResource PrimaryButton}" Click="RecordMeasurement"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,8">
+                            <Button Content="Record run" Style="{StaticResource PrimaryButton}" Click="RecordMeasurement"/>
+                            <Button Content="Clear measurement notes" Margin="8,0,0,0" Style="{StaticResource PrimaryButton}" Click="ClearMeasurements"/>
+                        </StackPanel>
                     </StackPanel>
                     <ListBox x:Name="MeasurementList"/>
                 </DockPanel>

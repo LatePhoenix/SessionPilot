@@ -24,4 +24,15 @@ public sealed class MeasurementLog
         _runs.Add(run);
         return run;
     }
+
+    public void Restore(IEnumerable<MeasurementRun> runs)
+    {
+        _runs.Clear();
+        foreach (var run in runs)
+        {
+            _runs.Add(run with { PerformanceEffect = "not-measured" });
+        }
+    }
+
+    public void Clear() => _runs.Clear();
 }

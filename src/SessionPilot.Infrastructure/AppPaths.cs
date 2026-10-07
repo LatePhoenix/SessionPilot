@@ -10,4 +10,6 @@ public static class AppPaths
     public static string JournalDirectory => Path.Combine(DataDirectory, "journals");
 
     public static string LoadoutDirectory => Path.Combine(DataDirectory, "loadouts");
+
+    public static string StateFile => Path.Combine(DataDirectory, "state.json");
 }

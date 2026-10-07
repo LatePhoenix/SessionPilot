@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private HonestStatus _status = new();
     private int _logicalProcessors;
     private int _samplesTaken;
+    private int _sampling;
 
     public MainWindow()
     {
@@ -44,32 +45,68 @@ public partial class MainWindow : Window
 
     private async Task LoadShell()
     {
-        var installation = LiveDiscovery.Installation();
-        var hardware = LiveDiscovery.Hardware();
-        _logicalProcessors = hardware.Confidence == DiscoveryConfidence.None ? 0 : hardware.LogicalProcessorCount;
+        DashboardBody.Text = "Discovering…";
+        PowerPlans.Text = "Discovering…";
+        GuidedBody.Text = "Discovering…";
+        LoadoutDetail.Text = "Discovering…";
+        ShowPage(PageDashboard, NavDashboard, "Dashboard");
         var presetDirectory = Path.Combine(AppContext.BaseDirectory, "presets");
-        _catalog = LoadoutCatalog.Load(presetDirectory, AppPaths.LoadoutDirectory);
+        var loadoutDirectory = AppPaths.LoadoutDirectory;
+        var journalDirectory = AppPaths.JournalDirectory;
+        var stateFile = AppPaths.StateFile;
+        var discovered = await Task.Run(() => Discover(presetDirectory, loadoutDirectory, journalDirectory, stateFile));
+        var listing = await PowerPlanReader.TryListAsync();
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        _logicalProcessors = discovered.Hardware.Confidence == DiscoveryConfidence.None ? 0 : discovered.Hardware.LogicalProcessorCount;
+        _catalog = discovered.Catalog;
         LoadoutList.ItemsSource = _catalog.All.Select(loadout => loadout.DisplayName).ToList();
-        DashboardBody.Text = DescribeInstallation(installation, hardware);
+        _powerOwner = discovered.Owner;
+        _measurements.Restore(discovered.Measurements);
+        ShowMeasurements();
+        DashboardBody.Text = DescribeInstallation(discovered.Installation, discovered.Hardware);
         if (_catalog.LoadErrors.Count > 0)
         {
             DashboardBody.Text += Environment.NewLine + Environment.NewLine + "Skipped loadout files:" + Environment.NewLine +
                                   string.Join(Environment.NewLine, _catalog.LoadErrors);
         }
+
         GuidedBody.Text = string.Join(Environment.NewLine + Environment.NewLine, GuidedWorkflows.All.Select(workflow =>
             workflow.Title + " (" + workflow.Mode + ")" + Environment.NewLine +
             string.Join(Environment.NewLine, workflow.Steps.Select(step => "• " + step.Title + ": " + step.Instruction)) +
             Environment.NewLine + workflow.Note));
         ApplyStatus();
-        var recovery = StartupRecovery.DescribeIncomplete(AppPaths.JournalDirectory);
-        DashboardBody.Text += Environment.NewLine + Environment.NewLine + "Startup recovery:" + Environment.NewLine + string.Join(Environment.NewLine, recovery);
-        var listing = await PowerPlanReader.TryListAsync();
+        DashboardBody.Text += Environment.NewLine + Environment.NewLine + "Startup recovery:" + Environment.NewLine +
+                              string.Join(Environment.NewLine, discovered.Recovery);
+        if (discovered.StateNote is not null)
+        {
+            DashboardBody.Text += Environment.NewLine + discovered.StateNote;
+        }
+
         var plans = listing is null ? [] : PowerPlanParser.Parse(listing);
         PowerPlans.Text = plans.Count == 0
             ? "Power plans: unavailable. Nothing was switched."
             : "Installed plans (read-only): " + string.Join(", ", plans.Select(plan => plan.Name + (plan.Active ? " (active)" : "")));
-        PowerDecisionText.Text = "No power owner is selected. Nothing was switched.";
-        ShowPage(PageDashboard, NavDashboard, "Dashboard");
+        PowerDecisionText.Text = _powerOwner == PowerOwnerKind.Unset
+            ? "No power owner is selected. Nothing was switched."
+            : "Owner " + _powerOwner + " is recorded. Nothing was switched.";
+    }
+
+    private static ShellSnapshot Discover(string presetDirectory, string loadoutDirectory, string journalDirectory, string stateFile)
+    {
+        var state = AppStateStore.Load(stateFile, out var note);
+        var owner = AppStateStore.TryParseOwner(state.PowerOwner, out var parsed) ? parsed : PowerOwnerKind.Unset;
+        return new ShellSnapshot(
+            LiveDiscovery.Installation(),
+            LiveDiscovery.Hardware(),
+            LoadoutCatalog.Load(presetDirectory, loadoutDirectory),
+            StartupRecovery.DescribeIncomplete(journalDirectory),
+            owner,
+            state.Measurements,
+            note);
     }
 
     private static string DescribeInstallation(ProcessLassoInstallation installation, HardwareInventory hardware)
@@ -125,7 +162,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SampleTick(object? sender, EventArgs e)
+    private async void SampleTick(object? sender, EventArgs e)
     {
         if (!_window.ShouldTakeSample(_samplesTaken))
         {
@@ -133,84 +170,55 @@ public partial class MainWindow : Window
             return;
         }
 
-        var started = Stopwatch.GetTimestamp();
-        var rows = new List<ProcessRow>();
+        if (Interlocked.Exchange(ref _sampling, 1) == 1)
+        {
+            return;
+        }
+
         var wall = _sampleClock.Elapsed;
         _sampleClock.Restart();
-        foreach (var process in Process.GetProcesses())
-        {
-            try
-            {
-                rows.Add(ReadRow(process, wall));
-            }
-            catch (Exception)
-            {
-                rows.Add(new ProcessRow { Name = "unknown", Pid = process.Id.ToString(), Access = "access-denied", Cpu = "unavailable", WorkingSet = "unavailable", Classification = "Unknown", Created = "unavailable", CreationTime = null });
-            }
-            finally
-            {
-                process.Dispose();
-            }
-        }
-
-        var duration = Stopwatch.GetElapsedTime(started);
-        var observation = ProcessorTimeSeries.Observe(null, null, wall, _logicalProcessors, duration);
-        _window.TryAdd(observation);
-        _samplesTaken++;
-        ProcessList.ItemsSource = rows.OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase).ToList();
-        DiagnosticsMeta.Text = "Samples " + _window.Count + "/" + _window.Capacity +
-                               " at " + (int)RollingSampleWindow<int>.DefaultInterval.TotalSeconds + "s. Collector " +
-                               duration.TotalMilliseconds.ToString("0") + " ms. Logical processors: " +
-                               (_logicalProcessors < 1 ? "unavailable" : _logicalProcessors.ToString()) + ".";
-        if (!_window.ShouldTakeSample(_samplesTaken))
-        {
-            _samples.Stop();
-        }
-    }
-
-    private ProcessRow ReadRow(Process process, TimeSpan wall)
-    {
-        var name = process.ProcessName;
-        DateTimeOffset? created = null;
-        long? workingSet = null;
-        TimeSpan? cpu = null;
-        var access = "ok";
+        var previous = new Dictionary<string, TimeSpan>(_previousCpu);
+        var processors = _logicalProcessors;
+        var started = Stopwatch.GetTimestamp();
         try
         {
-            created = new DateTimeOffset(DateTime.SpecifyKind(process.StartTime, DateTimeKind.Local));
-            cpu = process.TotalProcessorTime;
-            workingSet = process.WorkingSet64;
-        }
-        catch (InvalidOperationException)
-        {
-            access = "exited";
+            var sample = await Task.Run(() => ProcessSampler.Sample(previous, wall, processors));
+            if (!IsLoaded)
+            {
+                return;
+            }
+
+            var duration = Stopwatch.GetElapsedTime(started);
+            _previousCpu.Clear();
+            foreach (var pair in sample.Cpu)
+            {
+                _previousCpu[pair.Key] = pair.Value;
+            }
+
+            var observation = ProcessorTimeSeries.Observe(null, null, wall, processors, duration);
+            _window.TryAdd(observation);
+            _samplesTaken++;
+            ProcessList.ItemsSource = sample.Rows.OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            DiagnosticsMeta.Text = "Samples " + _window.Count + "/" + _window.Capacity +
+                                   " at " + (int)RollingSampleWindow<int>.DefaultInterval.TotalSeconds + "s. Collector " +
+                                   duration.TotalMilliseconds.ToString("0") + " ms. Logical processors: " +
+                                   (processors < 1 ? "unavailable" : processors.ToString()) + ".";
+            if (!_window.ShouldTakeSample(_samplesTaken))
+            {
+                _samples.Stop();
+            }
         }
         catch (Exception)
         {
-            access = "access-denied";
+            if (IsLoaded)
+            {
+                DiagnosticsMeta.Text = "The sample could not be read. Nothing was changed.";
+            }
         }
-
-        var key = process.Id + "|" + (created?.UtcTicks.ToString() ?? "none");
-        TimeSpan? previous = _previousCpu.TryGetValue(key, out var stored) ? stored : null;
-        if (cpu is not null && access == "ok")
+        finally
         {
-            _previousCpu[key] = cpu.Value;
+            Interlocked.Exchange(ref _sampling, 0);
         }
-
-        var observation = ProcessorTimeSeries.Observe(previous, access == "ok" ? cpu : null, wall, _logicalProcessors, TimeSpan.Zero);
-        var memory = MemoryReadings.FromWorkingSet(access == "ok" ? workingSet : null);
-        var preview = CleanupClassifier.Classify(name, protectedParticipant: false, observation.FractionOfLogicalCapacity);
-        return new ProcessRow
-        {
-            Name = name,
-            Pid = process.Id.ToString(),
-            Created = created?.ToString("yyyy-MM-dd HH:mm:ss") ?? "unavailable",
-            Access = access,
-            Cpu = FormatCpu(observation),
-            WorkingSet = memory.WorkingSetBytes is null ? "unavailable" : memory.WorkingSetBytes.Value.ToString("N0") + " bytes",
-            Classification = preview.Classification.ToString(),
-            CreationTime = access == "ok" ? created : null
-        };
     }
 
     private void HoldCloseTarget(object sender, RoutedEventArgs e) => _samples.Stop();
@@ -226,7 +234,7 @@ public partial class MainWindow : Window
 
     private void RequestClose(object sender, RoutedEventArgs e)
     {
-        if (ProcessList.SelectedItem is not ProcessRow row || row.CreationTime is null || !int.TryParse(row.Pid, out var processId))
+        if (ProcessList.SelectedItem is not SampledProcess row || row.CreationTime is null || !int.TryParse(row.Pid, out var processId))
         {
             CloseResult.Text = "Select one process with a known creation time. Nothing was closed.";
             return;
@@ -274,17 +282,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private static string FormatCpu(CpuObservation observation)
-    {
-        if (observation.FractionOfLogicalCapacity is null || observation.LogicalCoreEquivalents is null)
-        {
-            return "unavailable";
-        }
-
-        return observation.FractionOfLogicalCapacity.Value.ToString("0.0%") + " of logical capacity (" +
-               observation.LogicalCoreEquivalents.Value.ToString("0.00") + " logical cores)";
-    }
-
     private void LoadoutSelected(object sender, SelectionChangedEventArgs e)
     {
         if (_catalog is null || LoadoutList.SelectedIndex < 0)
@@ -305,6 +302,13 @@ public partial class MainWindow : Window
             BackgroundPolicy = loadout.BackgroundPolicy,
             RequestedApplications = []
         });
+    }
+
+    private void ClearManualLoadout(object sender, RoutedEventArgs e)
+    {
+        _session.ClearManualSelection();
+        LoadoutList.SelectedIndex = -1;
+        LoadoutDetail.Text = "No manual selection. Nothing was applied.";
     }
 
     private void InterpretPrompt(object sender, RoutedEventArgs e)
@@ -401,9 +405,23 @@ public partial class MainWindow : Window
     private void RecordMeasurement(object sender, RoutedEventArgs e)
     {
         var run = _measurements.Add(MeasurementLabel.Text, MeasurementConfounders.Text);
+        ShowMeasurements();
+        PersistState();
+        StatusPerformance.Text = run.PerformanceEffect;
+    }
+
+    private void ClearMeasurements(object sender, RoutedEventArgs e)
+    {
+        _measurements.Clear();
+        ShowMeasurements();
+        PersistState();
+        StatusPerformance.Text = "not-measured";
+    }
+
+    private void ShowMeasurements()
+    {
         MeasurementList.ItemsSource = _measurements.Runs.Select(item =>
             item.Label + " — " + item.PerformanceEffect + Environment.NewLine + item.Confounders + Environment.NewLine + item.CaptureNote).ToList();
-        StatusPerformance.Text = run.PerformanceEffect;
     }
 
     private void RecordProcessLassoPower(object sender, RoutedEventArgs e) => RecordPower(PowerOwnerKind.ProcessLasso);
@@ -415,6 +433,30 @@ public partial class MainWindow : Window
         var decision = PowerOwnership.Select(requested, _powerOwner, exportExists: false);
         _powerOwner = decision.Owner;
         PowerDecisionText.Text = decision.Detail;
+        PersistState();
+    }
+
+    private void ClearRecordedOwner(object sender, RoutedEventArgs e)
+    {
+        var decision = PowerOwnership.Clear();
+        _powerOwner = decision.Owner;
+        PowerDecisionText.Text = decision.Detail;
+        PersistState();
+    }
+
+    private void PersistState()
+    {
+        try
+        {
+            AppStateStore.Save(AppPaths.StateFile, new AppState
+            {
+                PowerOwner = _powerOwner.ToString(),
+                Measurements = _measurements.Runs.ToList()
+            });
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+        }
     }
 
     private void BeginSession(object sender, RoutedEventArgs e)
@@ -431,27 +473,17 @@ public partial class MainWindow : Window
 
     private void ContinueSession(object sender, RoutedEventArgs e)
     {
-        SessionPhase? next = _session.Phase switch
-        {
-            SessionPhase.Discovering => SessionPhase.Observing,
-            SessionPhase.Observing => SessionPhase.Planning,
-            SessionPhase.Planning => SessionPhase.AwaitingApproval,
-            SessionPhase.AwaitingApproval when _plan is not null => SessionPhase.Preparing,
-            SessionPhase.Preparing => SessionPhase.Active,
-            SessionPhase.Active => SessionPhase.Restoring,
-            SessionPhase.Restoring => SessionPhase.Completed,
-            _ => null
-        };
+        var next = _session.NextPhase(_plan is not null, out var blocked);
         if (next is null || !_session.TryTransition(next.Value, out var reason))
         {
-            SessionPhaseText.Text = "Staying in " + _session.Phase + ". Compile a plan before preparing.";
+            SessionPhaseText.Text = "Staying in " + _session.Phase + ". " + blocked;
             return;
         }
 
         SessionPhaseText.Text = _session.Phase + ". " + reason;
         if (_session.Phase == SessionPhase.Completed)
         {
-            _status = _status with { Compiled = _status.Compiled, PerformanceEffect = "not-measured" };
+            _status = _status with { PerformanceEffect = "not-measured" };
             ApplyStatus();
         }
     }
@@ -578,16 +610,13 @@ public partial class MainWindow : Window
         StatusPerformance.Text = _status.PerformanceEffect;
     }
 
-    private sealed class ProcessRow
-    {
-        public string Name { get; init; } = "";
-        public string Pid { get; init; } = "";
-        public string Created { get; init; } = "";
-        public string Access { get; init; } = "";
-        public string Cpu { get; init; } = "";
-        public string WorkingSet { get; init; } = "";
-        public string Classification { get; init; } = "";
-        public DateTimeOffset? CreationTime { get; init; }
-    }
+    private sealed record ShellSnapshot(
+        ProcessLassoInstallation Installation,
+        HardwareInventory Hardware,
+        LoadoutCatalog Catalog,
+        IReadOnlyList<string> Recovery,
+        PowerOwnerKind Owner,
+        IReadOnlyList<MeasurementRun> Measurements,
+        string? StateNote);
 }
 
