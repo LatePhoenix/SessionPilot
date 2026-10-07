@@ -119,7 +119,7 @@ public partial class MainWindow : Window
             }
             catch (Exception)
             {
-                rows.Add(new ProcessRow { Name = "unknown", Pid = process.Id.ToString(), Access = "access-denied", Cpu = "unavailable", WorkingSet = "unavailable", Classification = "Unknown", Created = "unavailable" });
+                rows.Add(new ProcessRow { Name = "unknown", Pid = process.Id.ToString(), Access = "access-denied", Cpu = "unavailable", WorkingSet = "unavailable", Classification = "Unknown", Created = "unavailable", CreationTime = null });
             }
             finally
             {
@@ -182,8 +182,70 @@ public partial class MainWindow : Window
             Access = access,
             Cpu = FormatCpu(observation),
             WorkingSet = memory.WorkingSetBytes is null ? "unavailable" : memory.WorkingSetBytes.Value.ToString("N0") + " bytes",
-            Classification = preview.Classification.ToString()
+            Classification = preview.Classification.ToString(),
+            CreationTime = access == "ok" ? created : null
         };
+    }
+
+    private void HoldCloseTarget(object sender, RoutedEventArgs e) => _samples.Stop();
+
+    private void ReleaseCloseTarget(object sender, RoutedEventArgs e)
+    {
+        if (PageDiagnostics.Visibility == Visibility.Visible && _window.ShouldTakeSample(_samplesTaken))
+        {
+            _sampleClock.Restart();
+            _samples.Start();
+        }
+    }
+
+    private void RequestClose(object sender, RoutedEventArgs e)
+    {
+        if (ProcessList.SelectedItem is not ProcessRow row || row.CreationTime is null || !int.TryParse(row.Pid, out var processId))
+        {
+            CloseResult.Text = "Select one process with a known creation time. Nothing was closed.";
+            return;
+        }
+
+        if (row.Classification is "SystemOrSecurity" or "ProtectedParticipant")
+        {
+            CloseResult.Text = "System, security, and protected participants are not close targets.";
+            ApproveClose.IsChecked = false;
+            return;
+        }
+
+        Process? process = null;
+        try
+        {
+            process = Process.GetProcessById(processId);
+            var current = new DateTimeOffset(DateTime.SpecifyKind(process.StartTime, DateTimeKind.Local));
+            var optional = ApproveClose.IsChecked == true && row.Classification is "Unknown" or "PossibleUnsavedWork";
+            var outcome = GracefulClosePolicy.Request(
+                processId,
+                row.CreationTime.Value,
+                process.Id,
+                current,
+                ApproveClose.IsChecked == true,
+                optional,
+                new LiveWindowCloser(process),
+                unsavedPromptVisible: false);
+            if (!outcome.ApprovalStillValid)
+            {
+                ApproveClose.IsChecked = false;
+            }
+
+            CloseResult.Text = outcome.Detail + (row.Classification == "PossibleUnsavedWork"
+                ? " If a save prompt appears, it belongs to the application."
+                : "");
+        }
+        catch (Exception)
+        {
+            ApproveClose.IsChecked = false;
+            CloseResult.Text = "The process could not be revalidated. No close request was sent.";
+        }
+        finally
+        {
+            process?.Dispose();
+        }
     }
 
     private static string FormatCpu(CpuObservation observation)
@@ -265,5 +327,13 @@ public partial class MainWindow : Window
         public string Cpu { get; init; } = "";
         public string WorkingSet { get; init; } = "";
         public string Classification { get; init; } = "";
+        public DateTimeOffset? CreationTime { get; init; }
     }
+}
+
+internal sealed class LiveWindowCloser(Process process) : ICloseRequest
+{
+    public bool HasMainWindow => process.MainWindowHandle != IntPtr.Zero;
+
+    public bool TryCloseMainWindow() => process.CloseMainWindow();
 }

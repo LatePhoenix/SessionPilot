@@ -73,6 +73,11 @@
                     <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                         <TextBlock x:Name="DiagnosticsMeta" Foreground="#9FB0C3" TextWrapping="Wrap"/>
                         <TextBlock Text="GPU engine counters are unavailable. Working set is not memory pressure. High CPU does not authorize a close." Foreground="#9FB0C3" TextWrapping="Wrap" Margin="0,4,0,8"/>
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox x:Name="ApproveClose" Content="This one selected app is optional and I approve a graceful close" Foreground="#EAF1F8" VerticalAlignment="Center" Checked="HoldCloseTarget" Unchecked="ReleaseCloseTarget"/>
+                            <Button Content="Request close" Margin="12,0,0,0" Style="{StaticResource PrimaryButton}" Click="RequestClose"/>
+                        </StackPanel>
+                        <TextBlock x:Name="CloseResult" TextWrapping="Wrap" Margin="0,8,0,8" Foreground="#9FB0C3"/>
                     </StackPanel>
                     <ListView x:Name="ProcessList">
                         <ListView.View>
