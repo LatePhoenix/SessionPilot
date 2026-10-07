@@ -118,7 +118,7 @@
                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
                         <Button Content="Interpret" Style="{StaticResource PrimaryButton}" Click="InterpretPrompt"/>
                         <TextBox x:Name="OllamaModel" Width="220" Margin="8,0,0,0" ToolTip="Installed model name"/>
-                        <Button Content="Interpret with Ollama" Margin="8,0,0,0" Style="{StaticResource PrimaryButton}" Click="InterpretWithOllama"/>
+                        <Button x:Name="InterpretOllama" Content="Interpret with Ollama" Margin="8,0,0,0" Style="{StaticResource PrimaryButton}" Click="InterpretWithOllama"/>
                     </StackPanel>
                     <TextBlock DockPanel.Dock="Bottom" x:Name="PromptResult" TextWrapping="Wrap" Margin="0,8,0,0"/>
                     <TextBox x:Name="PromptBox" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>

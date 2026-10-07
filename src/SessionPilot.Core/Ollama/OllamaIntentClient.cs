@@ -9,7 +9,8 @@ public sealed record OllamaRequest
     public required string Endpoint { get; init; }
     public required string Model { get; init; }
     public required string Prompt { get; init; }
-    public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(30);
+    public TimeSpan StartupBudget { get; init; } = TimeSpan.FromSeconds(20);
+    public TimeSpan RequestTimeout { get; init; } = TimeSpan.FromSeconds(60);
 }
 
 public sealed class OllamaIntentClient
@@ -35,12 +36,12 @@ public sealed class OllamaIntentClient
             return Fail("The Ollama endpoint must be a local http://127.0.0.1, localhost, or ::1 address.");
         }
 
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(request.Timeout);
         IOllamaSession? session = null;
         try
         {
-            session = await _host.AcquireAsync(uri, request.Timeout, timeout.Token).ConfigureAwait(false);
+            using var startup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            startup.CancelAfter(request.StartupBudget);
+            session = await _host.AcquireAsync(uri, request.StartupBudget, startup.Token).ConfigureAwait(false);
             if (session.Availability == OllamaAvailability.TimedOut)
             {
                 return Fail("Ollama interpretation timed out.");
@@ -69,8 +70,10 @@ public sealed class OllamaIntentClient
                 }
             };
             using var payload = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
-            using var response = await _http.PostAsync(uri, payload, timeout.Token).ConfigureAwait(false);
-            var bytes = await ReadLimitedAsync(response.Content, timeout.Token).ConfigureAwait(false);
+            using var chat = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            chat.CancelAfter(request.RequestTimeout);
+            using var response = await _http.PostAsync(uri, payload, chat.Token).ConfigureAwait(false);
+            var bytes = await ReadLimitedAsync(response.Content, chat.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 return Fail("Ollama returned HTTP " + (int)response.StatusCode + ".");
@@ -140,7 +143,7 @@ public sealed class OllamaIntentClient
     }
 
     private static bool IsLoopback(Uri uri) =>
-        uri.Scheme == Uri.UriSchemeHttp && uri.Host is "127.0.0.1" or "localhost" or "::1";
+        uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback;
 
     private static Interpretation Fail(string explanation) => new() { Success = false, Explanation = explanation };
 }

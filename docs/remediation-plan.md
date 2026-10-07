@@ -125,21 +125,21 @@ Branch: `fix/phase-2-core-correctness`.
 
 Branch: `fix/phase-3-ollama`.
 
-- [ ] **3.1 Accept `::1` as a loopback endpoint.** `OllamaIntentClient.IsLoopback` (`src/SessionPilot.Core/Ollama/OllamaIntentClient.cs:142`) never matches it, because `Uri.Host` is `[::1]`. Use `uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback`. Tests: `http://[::1]:11434` and `http://localhost:11434` are accepted. `https://127.0.0.1`, `http://192.168.1.2`, and `http://127.0.0.1.example.test` are refused.
-- [ ] **3.2 Treat a non-success reply on the Ollama port as "something else is listening".** In `ProbingOllamaHost.ProbeAsync` (`OllamaHost.cs:62`), a 404 from `/api/version` currently means "down" and leads to running `ollama serve`.
+- [x] **3.1 Accept `::1` as a loopback endpoint.** `OllamaIntentClient.IsLoopback` (`src/SessionPilot.Core/Ollama/OllamaIntentClient.cs:142`) never matches it, because `Uri.Host` is `[::1]`. Use `uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback`. Tests: `http://[::1]:11434` and `http://localhost:11434` are accepted. `https://127.0.0.1`, `http://192.168.1.2`, and `http://127.0.0.1.example.test` are refused.
+- [x] **3.2 Treat a non-success reply on the Ollama port as "something else is listening".** In `ProbingOllamaHost.ProbeAsync` (`OllamaHost.cs:62`), a 404 from `/api/version` currently means "down" and leads to running `ollama serve`.
   - Any HTTP response means something is listening. A non-success status returns `Unusable` with "Something is listening on the Ollama port but did not answer a version check. Nothing was started."
   - Only `HttpRequestException` (connection refused) means `Down`.
   - Tests use a fake handler and a fake `IOllamaLauncher` that counts calls: 404 does not launch, connection refused does launch, and 200 does not launch.
-- [ ] **3.3 Stop the server SessionPilot started when the readiness wait fails.** `OllamaServeLauncher.StartAsync` (`OllamaHost.cs:100`): if `WaitAsync` throws (a 2-second `HttpClient` timeout surfaces as `TaskCanceledException`, or the user cancels), the started `ollama serve` is never stopped.
+- [x] **3.3 Stop the server SessionPilot started when the readiness wait fails.** `OllamaServeLauncher.StartAsync` (`OllamaHost.cs:100`): if `WaitAsync` throws (a 2-second `HttpClient` timeout surfaces as `TaskCanceledException`, or the user cancels), the started `ollama serve` is never stopped.
   - Wrap the wait in try/catch: on any exception, `OllamaSession.Stop(process)` and rethrow.
   - Inside `WaitAsync`, treat `TaskCanceledException` when the caller's token is not cancelled as "not ready yet" and keep polling.
   - To test it, add a seam. Extract the readiness loop to `internal static Task<bool> WaitForReadyAsync(Func<CancellationToken, Task<bool>> probe, Func<bool> hasExited, TimeSpan budget, CancellationToken ct)`, add `InternalsVisibleTo("SessionPilot.Tests")` to Core, and test that a probe throwing `TaskCanceledException` keeps polling and that caller cancellation propagates. Test the try/catch-stop path through a small `IStartedProcess` abstraction if that stays simple; otherwise note it in the PR as reviewed by reading.
-- [ ] **3.4 Ignore relative PATH entries when locating `ollama.exe`.** In `OllamaServeLauncher.FindExecutable` (`OllamaHost.cs:153`), skip entries that are not fully qualified (`Path.IsPathFullyQualified`) after trimming whitespace and surrounding quotes. Test with an injected PATH string: move the PATH parsing into a pure helper that takes the string.
-- [ ] **3.5 Re-check the session gate after the request.** In `MainWindow.InterpretWithOllama` (`MainWindow.xaml.cs:322`):
+- [x] **3.4 Ignore relative PATH entries when locating `ollama.exe`.** In `OllamaServeLauncher.FindExecutable` (`OllamaHost.cs:153`), skip entries that are not fully qualified (`Path.IsPathFullyQualified`) after trimming whitespace and surrounding quotes. Test with an injected PATH string: move the PATH parsing into a pure helper that takes the string.
+- [x] **3.5 Re-check the session gate after the request.** In `MainWindow.InterpretWithOllama` (`MainWindow.xaml.cs:322`):
   - After the `await`, check `OllamaSessionGate.Allow(_session.Phase)` again. If the session became Active, show the result text but do not call `Compile`, and say "A session became Active. The plan was not recompiled."
   - Disable the Ollama button while a request is running, to stop concurrent clicks.
   - Cancel any pending request when the window closes: keep a `CancellationTokenSource` field and cancel it in `Closed`.
-- [ ] **3.6 Give cold model loads a realistic time budget.** `keep_alive` 0 means every request is a cold load, and the single 30-second budget covers both server startup (up to 20 seconds) and inference.
+- [x] **3.6 Give cold model loads a realistic time budget.** `keep_alive` 0 means every request is a cold load, and the single 30-second budget covers both server startup (up to 20 seconds) and inference.
   - Split it into `StartupBudget` (default 20 seconds) and `RequestTimeout` (default 60 seconds) on `OllamaRequest`.
   - Update `InterpretAsync` so starting the server and the chat call each use their own budget.
   - Test that both defaults are applied and that a timed-out chat returns "timed out" and still disposes the session.

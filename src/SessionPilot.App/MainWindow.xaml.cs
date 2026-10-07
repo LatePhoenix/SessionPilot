@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     private readonly SessionCoordinator _session = new();
     private readonly MeasurementLog _measurements = new();
     private readonly TriggerTracker _triggers = new();
+    private CancellationTokenSource? _ollamaRequest;
     private CompiledPlan? _plan;
     private PowerOwnerKind _powerOwner = PowerOwnerKind.Unset;
     private string? _approvedPlanHash;
@@ -34,6 +35,7 @@ public partial class MainWindow : Window
         _samples.Tick += SampleTick;
         Closed += (_, _) =>
         {
+            _ollamaRequest?.Cancel();
             _window.Close();
             _samples.Stop();
         };
@@ -336,6 +338,10 @@ public partial class MainWindow : Window
             return;
         }
 
+        InterpretOllama.IsEnabled = false;
+        _ollamaRequest?.Cancel();
+        _ollamaRequest?.Dispose();
+        _ollamaRequest = new CancellationTokenSource();
         try
         {
             using var http = new HttpClient();
@@ -345,16 +351,29 @@ public partial class MainWindow : Window
                 Endpoint = OllamaSessionGate.LoopbackEndpoint,
                 Model = OllamaModel.Text.Trim(),
                 Prompt = PromptBox.Text
-            }, _catalog, CancellationToken.None);
+            }, _catalog, _ollamaRequest.Token);
             PromptResult.Text = interpretation.Explanation + Environment.NewLine + "The prompt was not stored.";
+            if (!OllamaSessionGate.CompileAfterRequest(_session.Phase))
+            {
+                PromptResult.Text += Environment.NewLine + OllamaSessionGate.ActiveSessionNote;
+                return;
+            }
+
             if (interpretation.Success && interpretation.Intent is not null && _catalog.TryGet(interpretation.Intent.LoadoutId, out var loadout))
             {
                 Compile(loadout, interpretation.Intent);
             }
         }
+        catch (OperationCanceledException)
+        {
+        }
         catch (Exception)
         {
             PromptResult.Text = "Ollama could not be used. Presets still work without it. Nothing was stored.";
+        }
+        finally
+        {
+            InterpretOllama.IsEnabled = true;
         }
     }
 

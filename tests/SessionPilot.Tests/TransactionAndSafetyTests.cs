@@ -278,7 +278,7 @@ public class TransactionAndSafetyTests
         var catalog = LoadoutCatalog.Load(Path.Combine(AppContext.BaseDirectory, "presets"));
         var client = new OllamaIntentClient(new HttpClient(new HangingHandler()));
         var result = await client.InterpretAsync(
-            new OllamaRequest { Endpoint = "http://127.0.0.1:11434", Model = "example", Prompt = "games", Timeout = TimeSpan.FromMilliseconds(50) },
+            new OllamaRequest { Endpoint = "http://127.0.0.1:11434", Model = "example", Prompt = "games", StartupBudget = TimeSpan.FromMilliseconds(50), RequestTimeout = TimeSpan.FromMilliseconds(50) },
             catalog,
             CancellationToken.None);
         Assert.False(result.Success);

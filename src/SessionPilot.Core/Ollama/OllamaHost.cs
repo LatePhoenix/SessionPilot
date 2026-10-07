@@ -52,7 +52,7 @@ public sealed class ProbingOllamaHost : IOllamaHost
         {
             ProbeResult.Ready => OllamaSession.Existing(),
             ProbeResult.TimedOut => OllamaSession.TimedOut(),
-            ProbeResult.Unusable => OllamaSession.Unusable("Ollama is already running but did not answer a version check. It was left running."),
+            ProbeResult.Unusable => OllamaSession.Unusable("Something is listening on the Ollama port but did not answer a version check. Nothing was started."),
             _ => _launcher is null
                 ? OllamaSession.NotRunning("Ollama is not running.")
                 : await _launcher.StartAsync(health, budget, cancellationToken).ConfigureAwait(false)
@@ -67,14 +67,7 @@ public sealed class ProbingOllamaHost : IOllamaHost
         try
         {
             using var response = await _http.GetAsync(health, probeTimeout.Token).ConfigureAwait(false);
-            if (response.IsSuccessStatusCode)
-            {
-                return ProbeResult.Ready;
-            }
-
-            return response.StatusCode == System.Net.HttpStatusCode.NotFound
-                ? ProbeResult.Down
-                : ProbeResult.Unusable;
+            return response.IsSuccessStatusCode ? ProbeResult.Ready : ProbeResult.Unusable;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -140,55 +133,75 @@ public sealed class OllamaServeLauncher : IOllamaLauncher
             return OllamaSession.NotRunning("Ollama serve could not be started. " + exception.Message);
         }
 
-        var ready = await WaitAsync(healthEndpoint, budget, process, cancellationToken).ConfigureAwait(false);
-        if (ready)
-        {
-            return OllamaSession.Started(process);
-        }
-
-        OllamaSession.Stop(process);
-        return OllamaSession.NotRunning("Ollama was started for this request but did not become ready. The process was stopped.");
-    }
-
-    public static string? FindExecutable()
-    {
-        var candidates = new List<string>
-        {
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Ollama", "ollama.exe")
-        };
-        var path = Environment.GetEnvironmentVariable("PATH");
-        if (!string.IsNullOrWhiteSpace(path))
-        {
-            foreach (var directory in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-            {
-                candidates.Add(Path.Combine(directory.Trim(), "ollama.exe"));
-            }
-        }
-
-        return candidates.FirstOrDefault(File.Exists);
-    }
-
-    private static async Task<bool> WaitAsync(Uri healthEndpoint, TimeSpan budget, Process process, CancellationToken cancellationToken)
-    {
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
-        var deadline = DateTimeOffset.UtcNow + (budget < TimeSpan.FromSeconds(20) ? budget : TimeSpan.FromSeconds(20));
+        var waitBudget = budget < TimeSpan.FromSeconds(20) ? budget : TimeSpan.FromSeconds(20);
+        var ready = await CompleteStartAsync(
+            async token =>
+            {
+                try
+                {
+                    using var response = await client.GetAsync(healthEndpoint, token).ConfigureAwait(false);
+                    return response.IsSuccessStatusCode;
+                }
+                catch (HttpRequestException)
+                {
+                    return false;
+                }
+            },
+            () => process.HasExited,
+            () => OllamaSession.Stop(process),
+            waitBudget,
+            cancellationToken).ConfigureAwait(false);
+        return ready
+            ? OllamaSession.Started(process)
+            : OllamaSession.NotRunning("Ollama was started for this request but did not become ready. The process was stopped.");
+    }
+
+    public static string? FindExecutable() =>
+        ExecutableCandidates(
+            Environment.GetEnvironmentVariable("PATH"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs"))
+        .FirstOrDefault(File.Exists);
+
+    internal static IEnumerable<string> ExecutableCandidates(string? pathVariable, string programsDirectory)
+    {
+        yield return Path.Combine(programsDirectory, "Ollama", "ollama.exe");
+        if (string.IsNullOrWhiteSpace(pathVariable))
+        {
+            yield break;
+        }
+
+        foreach (var entry in pathVariable.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var directory = entry.Trim().Trim('"');
+            if (directory.Length == 0 || !Path.IsPathFullyQualified(directory))
+            {
+                continue;
+            }
+
+            yield return Path.Combine(directory, "ollama.exe");
+        }
+    }
+
+    internal static async Task<bool> WaitForReadyAsync(Func<CancellationToken, Task<bool>> probe, Func<bool> hasExited, TimeSpan budget, CancellationToken cancellationToken)
+    {
+        var deadline = DateTimeOffset.UtcNow + budget;
         while (DateTimeOffset.UtcNow < deadline)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (process.HasExited)
+            if (hasExited())
             {
                 return false;
             }
 
             try
             {
-                using var response = await client.GetAsync(healthEndpoint, cancellationToken).ConfigureAwait(false);
-                if (response.IsSuccessStatusCode)
+                if (await probe(cancellationToken).ConfigureAwait(false))
                 {
                     return true;
                 }
             }
-            catch (HttpRequestException)
+            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
             }
 
@@ -196,6 +209,25 @@ public sealed class OllamaServeLauncher : IOllamaLauncher
         }
 
         return false;
+    }
+
+    internal static async Task<bool> CompleteStartAsync(Func<CancellationToken, Task<bool>> probe, Func<bool> hasExited, Action stop, TimeSpan budget, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var ready = await WaitForReadyAsync(probe, hasExited, budget, cancellationToken).ConfigureAwait(false);
+            if (!ready)
+            {
+                stop();
+            }
+
+            return ready;
+        }
+        catch (Exception)
+        {
+            stop();
+            throw;
+        }
     }
 }
 
