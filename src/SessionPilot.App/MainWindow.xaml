@@ -67,6 +67,13 @@
                         <TextBlock x:Name="DashboardBody" TextWrapping="Wrap" LineHeight="20"/>
                         <TextBlock Text="Guided workflows" FontWeight="SemiBold" Margin="0,16,0,8"/>
                         <TextBlock x:Name="GuidedBody" TextWrapping="Wrap" Foreground="#9FB0C3"/>
+                        <TextBlock Text="Power owner" FontWeight="SemiBold" Margin="0,16,0,8"/>
+                        <TextBlock x:Name="PowerPlans" TextWrapping="Wrap" Foreground="#9FB0C3"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="Record Process Lasso" Style="{StaticResource PrimaryButton}" Click="RecordProcessLassoPower"/>
+                            <Button Content="Record Windows" Margin="8,0,0,0" Style="{StaticResource PrimaryButton}" Click="RecordWindowsPower"/>
+                        </StackPanel>
+                        <TextBlock x:Name="PowerDecisionText" TextWrapping="Wrap" Margin="0,8,0,0"/>
                     </StackPanel>
                 </ScrollViewer>
 

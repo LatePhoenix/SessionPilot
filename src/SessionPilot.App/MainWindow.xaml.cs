@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     private LoadoutCatalog? _catalog;
     private readonly SessionCoordinator _session = new();
     private CompiledPlan? _plan;
+    private PowerOwnerKind _powerOwner = PowerOwnerKind.Unset;
     private string? _approvedPlanHash;
     private string? _approvedConfigHash;
     private HonestStatus _status = new();
@@ -52,6 +53,12 @@ public partial class MainWindow : Window
         ApplyStatus();
         var recovery = StartupRecovery.DescribeIncomplete(AppPaths.JournalDirectory);
         DashboardBody.Text += Environment.NewLine + Environment.NewLine + "Startup recovery:" + Environment.NewLine + string.Join(Environment.NewLine, recovery);
+        var listing = PowerPlanReader.TryList();
+        var plans = listing is null ? [] : PowerPlanParser.Parse(listing);
+        PowerPlans.Text = plans.Count == 0
+            ? "Power plans: unavailable. Nothing was switched."
+            : "Installed plans (read-only): " + string.Join(", ", plans.Select(plan => plan.Name + (plan.Active ? " (active)" : "")));
+        PowerDecisionText.Text = "No power owner is selected. Nothing was switched.";
         ShowPage(PageDashboard, NavDashboard, "Dashboard");
     }
 
@@ -317,6 +324,17 @@ public partial class MainWindow : Window
             change.TargetIdentity + "  " + change.ExistingValue + " → " + change.ProposedValue +
             Environment.NewLine + change.Rationale + Environment.NewLine +
             change.SupportStatus + "  writable=" + change.Writable).ToList();
+    }
+
+    private void RecordProcessLassoPower(object sender, RoutedEventArgs e) => RecordPower(PowerOwnerKind.ProcessLasso);
+
+    private void RecordWindowsPower(object sender, RoutedEventArgs e) => RecordPower(PowerOwnerKind.Windows);
+
+    private void RecordPower(PowerOwnerKind requested)
+    {
+        var decision = PowerOwnership.Select(requested, _powerOwner, exportExists: false);
+        _powerOwner = decision.Owner;
+        PowerDecisionText.Text = decision.Detail;
     }
 
     private void BeginSession(object sender, RoutedEventArgs e)
