@@ -212,6 +212,7 @@ public sealed class TransactionCoordinator
         {
             var before = baseline.Find(edit.Section, edit.Key);
             var after = written.Find(edit.Section, edit.Key);
+            // Both sides are the raw text after '=', including preserved spacing.
             owned.Add(new OwnedValue
             {
                 Section = edit.Section,

@@ -170,17 +170,17 @@ Branch: `fix/phase-4-infrastructure`.
 
 Branch: `fix/phase-5-ini-transactions`. Nothing writes to a live file today, but these must be right before any codec is ever enabled.
 
-- [ ] **5.1 Keep the spacing after `=` when editing.** `IniDocument.Apply` (`src/SessionPilot.Core/Ini/IniDocument.cs:130`) rewrites `Key = old` as `Key =new`.
+- [x] **5.1 Keep the spacing after `=` when editing.** `IniDocument.Apply` (`src/SessionPilot.Core/Ini/IniDocument.cs:130`) rewrites `Key = old` as `Key =new`.
   - Keep the original value's leading whitespace, and trailing whitespace if present.
   - The `Value` stored on the line stays the raw text after `=`, so `RestorePlanner` comparisons keep working. Update `CaptureOwned` so `WrittenValue` and `BaselineValue` are compared consistently: either both raw or both trimmed. Document the choice in a code comment.
   - Tests: spacing is preserved, a byte-for-byte round trip with no edits still holds, and the restore analysis still finds a restorable value after an edit with spacing.
-- [ ] **5.2 Refuse values the file's encoding cannot store.** Reproduced: writing `日本` into a Latin-1 file produced `??`.
+- [x] **5.2 Refuse values the file's encoding cannot store.** Reproduced: writing `日本` into a Latin-1 file produced `??`.
   - In `Apply`, check each value with a strict encoder (`Encoding.GetEncoding(name, EncoderFallback.ExceptionFallback, …)`, or by round-tripping) for the document's encoding.
   - Reject with "Value for [S] K cannot be represented in the file's Latin1 encoding."
   - Tests: Latin-1 with CJK is rejected, Latin-1 with `é` is accepted, and UTF-8 with CJK is accepted.
-- [ ] **5.3 Refuse duplicate edits.** In `Apply`, two edits for the same section and key (case-insensitive) are rejected with "[S] K is edited more than once." Test it.
-- [ ] **5.4 Refuse new values that would read as an inline comment.** In `Apply`, reject a *new* value that contains ` ;` or ` #`, using the same rule as `HasInlineComment`. Test it.
-- [ ] **5.5 Bind the full plan in the approval hash.** `ApprovalBinding.HashPlan` (`src/SessionPilot.Core/Transactions/ApprovalBinding.cs:7`):
+- [x] **5.3 Refuse duplicate edits.** In `Apply`, two edits for the same section and key (case-insensitive) are rejected with "[S] K is edited more than once." Test it.
+- [x] **5.4 Refuse new values that would read as an inline comment.** In `Apply`, reject a *new* value that contains ` ;` or ` #`, using the same rule as `HasInlineComment`. Test it.
+- [x] **5.5 Bind the full plan in the approval hash.** `ApprovalBinding.HashPlan` (`src/SessionPilot.Core/Transactions/ApprovalBinding.cs:7`):
   - Include `TargetIdentity`, `Section`, `Key`, `ExistingValue`, `ProposedValue`, `Writable`, and `SupportStatus` for each change, plus `LoadoutId`, `Summary`, and the intent fields.
   - Use unambiguous framing: length-prefix each field (`{len}:{value}`) instead of `|` and `\n` separators.
   - Do not include `PlanId`. It is a fresh GUID on every compile, and including it would make re-compiling the same plan look different, a separate design decision.

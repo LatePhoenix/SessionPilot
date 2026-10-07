@@ -7,13 +7,37 @@ public static class ApprovalBinding
     public static string HashPlan(CompiledPlan plan)
     {
         var builder = new StringBuilder();
-        builder.Append(plan.LoadoutId).Append('\n').Append(plan.Summary).Append('\n');
+        Field(builder, plan.LoadoutId);
+        Field(builder, plan.Summary);
+        Field(builder, plan.Intent.SchemaVersion.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Field(builder, plan.Intent.LoadoutId);
+        Field(builder, plan.Intent.Objective);
+        Field(builder, plan.Intent.SessionMode);
+        Field(builder, plan.Intent.PowerPreference);
+        Field(builder, plan.Intent.BackgroundPolicy);
+        foreach (var application in plan.Intent.RequestedApplications)
+        {
+            Field(builder, application);
+        }
+
         foreach (var change in plan.Changes)
         {
-            builder.Append(change.ChangeId).Append('|').Append(change.ProposedValue).Append('|').Append(change.Writable).Append('\n');
+            Field(builder, change.TargetIdentity);
+            Field(builder, change.Section);
+            Field(builder, change.Key);
+            Field(builder, change.ExistingValue);
+            Field(builder, change.ProposedValue);
+            Field(builder, change.Writable ? "true" : "false");
+            Field(builder, change.SupportStatus.ToString());
         }
 
         return ContentHashing.Sha256(Encoding.UTF8.GetBytes(builder.ToString()));
+    }
+
+    private static void Field(StringBuilder builder, string? value)
+    {
+        value ??= "";
+        builder.Append(value.Length).Append(':').Append(value);
     }
 
     public static bool StillValid(string? approvedPlanHash, string? approvedConfigHash, string planHash, string configHash) =>

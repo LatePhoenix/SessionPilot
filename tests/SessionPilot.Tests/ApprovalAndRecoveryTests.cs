@@ -38,6 +38,31 @@ public class ApprovalAndRecoveryTests
         var changed = plan with { Summary = "different" };
         Assert.False(ApprovalBinding.StillValid(hash, "abc", ApprovalBinding.HashPlan(changed), "abc"));
         Assert.False(ApprovalBinding.StillValid(hash, "abc", hash, "def"));
+        var sectionChanged = plan with { Changes = [plan.Changes[0] with { Section = "Other" }] };
+        Assert.NotEqual(hash, ApprovalBinding.HashPlan(sectionChanged));
+        var pipeLeft = plan with { Changes = [plan.Changes[0] with { Section = "a|b", Key = "c" }] };
+        var pipeRight = plan with { Changes = [plan.Changes[0] with { Section = "a", Key = "b|c" }] };
+        Assert.NotEqual(ApprovalBinding.HashPlan(pipeLeft), ApprovalBinding.HashPlan(pipeRight));
+    }
+
+    [Fact]
+    public void Recompile_KeepsTheSameApprovalHash()
+    {
+        var catalog = LoadoutCatalog.Load(Path.Combine(AppContext.BaseDirectory, "presets"));
+        Assert.True(catalog.TryGet("balanced", out var loadout));
+        var intent = new UserIntent
+        {
+            LoadoutId = loadout.Id,
+            Objective = loadout.Objective,
+            SessionMode = loadout.SessionMode,
+            PowerPreference = loadout.PowerPreference,
+            BackgroundPolicy = loadout.BackgroundPolicy,
+            RequestedApplications = []
+        };
+        var first = PlanCompiler.Compile(new CompileInput { Intent = intent, Loadout = loadout });
+        var second = PlanCompiler.Compile(new CompileInput { Intent = intent, Loadout = loadout });
+        Assert.NotEqual(first.PlanId, second.PlanId);
+        Assert.Equal(ApprovalBinding.HashPlan(first), ApprovalBinding.HashPlan(second));
     }
 
     [Fact]

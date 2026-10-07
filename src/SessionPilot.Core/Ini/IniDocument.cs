@@ -91,12 +91,28 @@ public sealed class IniDocument
             return IniEditResult.Unchanged(this);
         }
 
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var resolved = new List<(IniKeyLine Line, IniEdit Edit)>();
         foreach (var edit in edits)
         {
+            if (!seen.Add(edit.Section + "\n" + edit.Key))
+            {
+                return IniEditResult.Rejected($"[{edit.Section}] {edit.Key} is edited more than once.");
+            }
+
             if (edit.Value.Contains('\r') || edit.Value.Contains('\n'))
             {
                 return IniEditResult.Rejected($"Value for [{edit.Section}] {edit.Key} contains a line break.");
+            }
+
+            if (!CanRepresent(edit.Value, Encoding))
+            {
+                return IniEditResult.Rejected($"Value for [{edit.Section}] {edit.Key} cannot be represented in the file's {Encoding} encoding.");
+            }
+
+            if (HasInlineComment(edit.Value))
+            {
+                return IniEditResult.Rejected($"[{edit.Section}] {edit.Key} new value would read as an inline comment. The edit was refused.");
             }
 
             var lookup = Find(edit.Section, edit.Key);
@@ -128,8 +144,9 @@ public sealed class IniDocument
             }
 
             var equalsAt = match.Line.Content.IndexOf('=');
-            var content = match.Line.Content[..(equalsAt + 1)] + match.Edit.Value;
-            return match.Line with { Content = content, Value = match.Edit.Value };
+            var raw = PreserveSpacing(match.Line.Value, match.Edit.Value);
+            var content = match.Line.Content[..(equalsAt + 1)] + raw;
+            return match.Line with { Content = content, Value = raw };
         }).ToList();
 
         var document = new IniDocument(OriginalBytes, Encoding, HasBom, updated);
@@ -230,6 +247,34 @@ public sealed class IniDocument
         }
 
         return ValueKind.Other;
+    }
+
+    private static string PreserveSpacing(string original, string value)
+    {
+        var leading = original[..(original.Length - original.TrimStart().Length)];
+        var core = original.Trim();
+        var trailing = core.Length == 0 ? "" : original[original.TrimEnd().Length..];
+        return leading + value + trailing;
+    }
+
+    private static bool CanRepresent(string value, TextEncoding encoding)
+    {
+        var codec = encoding switch
+        {
+            TextEncoding.Latin1 => System.Text.Encoding.GetEncoding(28591, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback),
+            TextEncoding.Utf16Le => new UnicodeEncoding(bigEndian: false, byteOrderMark: false, throwOnInvalidBytes: true),
+            TextEncoding.Utf16Be => new UnicodeEncoding(bigEndian: true, byteOrderMark: false, throwOnInvalidBytes: true),
+            _ => new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true)
+        };
+        try
+        {
+            _ = codec.GetBytes(value);
+            return true;
+        }
+        catch (EncoderFallbackException)
+        {
+            return false;
+        }
     }
 
     private static bool HasInlineComment(string value)
