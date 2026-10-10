@@ -1,6 +1,7 @@
 SESSIONPILOT — PROJECT SPECIFICATION AND REFACTORING BLUEPRINT
-Version 1.0 | October 7, 2026
-Working name; not a required repository or executable rename.
+Version 1.1 | October 10, 2026
+Product name: SessionPilot. The repository folder keeps its earlier name
+(LassoPilot). The executable is SessionPilot.App.exe.
 
 EXECUTIVE SUMMARY
 SessionPilot evolves the existing Process-Lasso-only project into a Windows
@@ -17,11 +18,15 @@ software development, builds, local inference, media playback, and background
 batch work. Presets must work offline without an LLM.
 
 STATUS OF THIS DOCUMENT
-This specification consolidates the preceding project discussion. It does not
-assert that any feature is already implemented. The current repository was not
-inspected. Integration feasibility is separated from product requirements.
-The implementer must discover actual code, active configuration, and supported
-interfaces before enabling writes.
+Sections 1 through 21 are the requirements blueprint. They were written on
+October 7, 2026, before the repository was inspected, and they describe intent,
+not shipped behavior. Integration feasibility is separated from product
+requirements. The implementer must discover actual code, active configuration,
+and supported interfaces before enabling writes.
+
+Section 22 records what build 1.0.2 implements. It was checked against the
+source on October 10, 2026. Where section 22 and the blueprint differ, section
+22 describes the product as it is, and the blueprint describes the target.
 
 1. PRODUCT GOALS
 G1. Explain what consumes resources during a selected activity.
@@ -478,3 +483,195 @@ https://github.com/GameTechDev/PresentMon
 
 URLs provide research context, not a promise of stable automation interfaces.
 This is a project specification, not a machine-specific performance diagnosis.
+
+22. IMPLEMENTATION STATUS (BUILD 1.0.2, CHECKED OCTOBER 10, 2026)
+Legend: [done] shipped and reachable in the window or --check.
+        [core] implemented and tested in SessionPilot.Core, not wired to UI.
+        [part] partly implemented; the gap is stated.
+        [off]  deliberately disabled or deferred until evidence exists.
+        [none] not started.
+
+22.1 Stack and structure
+[done] C#, WPF, .NET 10 (SDK 10.0.303 pinned), xUnit, JSON persistence.
+[done] Three projects plus tests: SessionPilot.Core (policy, planning,
+       transactions, INI, Ollama client), SessionPilot.Infrastructure (live
+       Windows reads, process start, state file), SessionPilot.App (WPF shell
+       and --check). No plugin framework, no database.
+[done] Per-user, self-contained x64 MSI (WiX 6.0.2) with upgrade, downgrade
+       refusal, and a first-page notice about Bitsum and Process Lasso.
+[done] CI: dotnet test on windows-latest for pushes and PRs to main.
+       156 automated tests pass. The installer is not built in CI.
+[off]  Elevated helper. None exists.
+Note: OllamaServeLauncher in Core starts and stops "ollama serve". All other
+process starts and Windows reads live in Infrastructure.
+
+22.2 Product goals
+G1  [part] Rolling CPU and working-set table on the Diagnostics page. No
+           workload-specific grouping, GPU, disk, or commit-pressure data.
+G2  [done] Status line keeps compiled, persisted, governor, effective, and
+           performance separate. Performance stays "not-measured".
+G3  [done] One approved process, one graceful CloseMainWindow request.
+G4  [done] System/security list, possible-unsaved-work list, and names that
+           are never blanket targets. Unknown is never disposable.
+G5  [done] Deterministic wording rules; optional Ollama limited to a schema.
+G6  [off]  Lossless INI editing exists [core]; live writes are disabled and
+           no rule-family codec is verified.
+G7  [part] Confirmed launch with ownership; one recorded power owner. No
+           power-plan switch, no readiness probe, no shutdown at session end.
+G8  [part] Owned-value capture and three-way restore analysis [core]. No
+           restore executor and no restore in the window.
+G9  [done] Five separate status fields; measurement notes never claim gain.
+G10 [done] Sampling only on the Diagnostics page; Ollama refused while a
+           session is Active; keep_alive 0; app-started server is stopped.
+G11 [done] Renamed from LassoPilot with no data migration needed.
+G12 [done] Guided VRChat, SteamVR, and Virtual Desktop cards; capability
+           notes explain the missing evidence for each rule family.
+
+22.3 Success criteria
+[done] Read-only diagnostic without administrator rights (asInvoker).
+[done] A preset produces a complete dry-run preview without an AI provider.
+[done] Rolling samples: the last 30 samples at 2 s, kept while the
+       Diagnostics page is open. The first sample after a pause has no CPU
+       delta.
+[done] Unknown processes are never classified as disposable.
+[done] Graceful close never escalates; there is no Kill path.
+[off]  Existing Process Lasso rules survive changes: nothing is written.
+[core] External edits become conflicts in RestorePlanner.
+[done] Incomplete journals are described on startup and not rolled back.
+[done] Loadouts compile without claiming a performance gain.
+[done] Disabled capabilities state their missing evidence.
+
+22.4 Loadouts (section 2)
+[done] Ten built-ins: balanced, vrchat-steamvr, vrchat-social,
+       vrchat-diagnostic, desktop-gaming, development-interactive,
+       development-build-heavy, development-local-ai, media-playback,
+       background-batch. All keep priority and CPU placement "unchanged"
+       and ProBalance "preserve"; the validator refuses anything else.
+[done] User loadouts load from %LOCALAPPDATA%\SessionPilot\loadouts.
+       A bad or colliding file is skipped and listed.
+[core] Clone and save of a user loadout. No editor in the window.
+[none] Local identity bindings for roles. Plans compiled in the window have
+       no confirmed identities, so participant rows stay "Unconfirmed".
+
+22.5 Journeys (section 3)
+J1 [part] Discovery, rolling samples, guided overlay steps, measurement
+          notes with confounders. No report export besides --check, and no
+          controlled-comparison workflow.
+J2 [part] Loadout or prompt -> dry-run plan -> approval bound to plan and
+          file hash -> refused apply (no writable edits). Session phases are
+          stepped by hand with Begin and Continue; phases do not run work.
+J3 [part] Classify -> approve one process -> revalidate -> close request.
+          No pause, no application grouping.
+J4 [done] Deterministic match first; Ollama answer must match the schema,
+          a known loadout id, and the wording rules, or nothing compiles.
+J5 [part] Startup scan of journals; description only, no reconciliation UI.
+
+22.6 State model (section 4)
+[done] Desired state (loadout), persisted (journal/file hash), engine
+       (governor "not-verified"), effective ("not-observed"), and observed
+       ("not-measured") are kept apart in HonestStatus and the plan stages.
+
+22.7 Discovery and diagnostics (sections 5 and 6)
+[done] Probes only Program Files\Process Lasso\ProcessLasso.exe,
+       ProcessGovernor.exe, and ProgramData\ProcessLasso\config\prolasso.ini.
+       No registry search. Confidence stays Low; nothing is "confirmed".
+[done] Topology from GetLogicalProcessorInformationEx: groups, cores,
+       efficiency class, caches, NUMA. CPU Set data is not collected.
+[done] CPU as fraction of logical capacity and logical-core equivalents;
+       missing counters are "unavailable", never zero.
+[done] PID plus creation time identity; access-denied and exited rows.
+[done] Collector duration shown per sample.
+[none] GPU engine, disk, commit, paging, publisher, parent, and window
+       evidence; application grouping.
+[none] PresentMon or headset timing import.
+
+22.8 Cleanup advisor (section 7)
+[done] Classes: ProtectedParticipant, SystemOrSecurity, PossibleUnsavedWork,
+       Unknown. Python, Node, browsers, terminals, and editors are never
+       blanket targets. Ladder step 3 (graceful main-window close) only.
+[none] App-specific pause/unload, priority policy, process grouping.
+[off]  Force termination.
+
+22.9 Process Lasso (section 8)
+[done] Read-only discovery and version read.
+[core] Lossless IniDocument: UTF-8, UTF-16 LE/BE, Latin-1, BOM, line endings,
+       unknown lines, ambiguous duplicates block edits, spacing preserved,
+       unrepresentable values and new inline comments refused, no new keys.
+[core] CapabilityAssessor notes for performance mode, Efficiency Mode, CPU
+       priority, ProBalance exclusions, CPU Sets, watchdogs, and affinity.
+[core] Historical OocExclusions and DefaultPriorities parsers; serialization
+       is hard-coded off. Manual JSON rule preview, labeled unverified.
+[off]  LiveApplyPolicy.Enabled is false. Writes to the live candidate path
+       are refused. Real-time and High priority are forbidden.
+
+22.10 Expanded adapters (section 9)
+[part] Launcher: confirmed path or URI, approved argument list, prompt text
+       refused as path or argument, already-running apps not owned. No
+       readiness check, dependency order, or shutdown at session end.
+       Launcher stubs (for example Windows 11 notepad.exe) are owned as the
+       stub, not the window that appears.
+[part] Power: powercfg /list read with a 4 s timeout, language-independent
+       parsing, one recorded owner (Process Lasso or Windows) persisted in
+       state.json, second owner refused. No plan is ever switched.
+[done] SteamVR, VRChat, Virtual Desktop: guided-only cards. No file writes.
+[none] Audio inventory, download/sync pause, recording/overlay adapters.
+
+22.11 Natural language (section 12)
+[done] Deterministic whole-word matcher with plural tolerance and precedence
+       for VRChat wording. Quoted names are kept unless path-like.
+[done] Ollama: loopback http only (127.0.0.1, localhost, ::1); started only
+       when nothing listens and stopped afterwards; a non-Ollama listener is
+       left alone; 20 s startup and 120 s request budgets; 64 KB response cap;
+       temperature 0; JSON schema with loadoutId enum; unknown fields,
+       commands, paths, registry text, and termination words rejected;
+       invented application names dropped. Installed model names listed from
+       the manifests folder. No download. The prompt is not stored.
+
+22.12 Session state machine (section 13)
+[done] All thirteen phases and the allowed transitions. One session at a
+       time. Launch only in Preparing or Active.
+[part] Continue advances by hand; Cancelled, PartiallyApplied, and
+       RecoveryRequired are not reachable from the window. Session state is
+       memory only.
+[done] Triggers: opt-in, precedence, 5 s debounce, 20 s dwell, 45 s exit
+       grace, manual override that can be cleared. Suggest only. Signals are
+       typed loadout ids; there is no automatic detection.
+
+22.13 Transactions and restoration (section 14)
+[core] Approval, live-path refusal, application lock, baseline hash, durable
+       journal per step, exact backup, re-hash before replace, same-volume
+       temp-then-replace, byte verification, owned-value capture.
+[done] Approval binds a length-prefixed plan hash and the file hash; any
+       change invalidates it. Startup lists incomplete or unreadable journals.
+[core] Three-way restore analysis with conflicts for external edits.
+[none] Cross-adapter saga, compensation, restore executor.
+In the window, compiled plans carry no edits, so every apply is refused
+before the file is touched.
+
+22.14 Security, privacy, overhead (section 15)
+[done] Unprivileged UI. Local-only data under %LOCALAPPDATA%\SessionPilot.
+       Path, UNC, and account-name redaction in --check, errors, and
+       recovery text. Command lines are not collected. No telemetry upload.
+[done] Global exception handlers show a redacted message and keep running.
+[part] Collector cost measured (about 10 ms per sample on the test machine);
+       no documented overhead budget.
+
+22.15 UI (section 16)
+Shipped pages: Dashboard (discovery, guided cards, power owner, triggers,
+startup recovery), Diagnostics (process table and graceful close), Loadouts,
+Prompt, Plan review (approval and isolated-copy apply), Session (phases and
+launch), Measurement. Cleanup lives on Diagnostics. Settings, History, and
+Guided setup completion tracking do not exist.
+
+22.16 Phases (section 18)
+P0 [done]  P1 [done, no GPU]  P2 [part]  P3 [core, live writes off]
+P4 [part]  P5 [done]  P6 [done, manual signals]  P7 [part: MSI, docs,
+--check; no measurement import or comparison report]  P8 [none]
+
+22.17 Known gaps found in the October 10 review
+Fixed after the review: Diagnostics sampling stopped for good after 30
+samples in one app run, and resuming after a pause inflated the first CPU
+deltas. docs/architecture.md and docs/graceful-close.md were corrected.
+Still open:
+- CompiledPlan.Warnings, change risk, evidence, and verification text are
+  not shown on the Plan review page.
