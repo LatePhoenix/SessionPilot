@@ -105,20 +105,27 @@ public class DiagnosticsAndPresetTests
     }
 
     [Fact]
-    public void SampleWindow_StopsAtCapacityAndWhenClosed()
+    public void SampleWindow_KeepsSamplingPastCapacityAndDropsTheOldest()
     {
         var window = new RollingSampleWindow<int>(capacity: 30);
         for (var i = 0; i < 40; i++)
         {
-            if (window.ShouldTakeSample(i))
-            {
-                Assert.True(window.TryAdd(i));
-            }
+            Assert.True(window.ShouldTakeSample());
+            Assert.True(window.TryAdd(i));
         }
 
+        Assert.True(window.ShouldTakeSample());
         Assert.Equal(30, window.Count);
+        Assert.Equal(10, window.Samples[0]);
+        Assert.Equal(39, window.Samples[^1]);
+    }
+
+    [Fact]
+    public void SampleWindow_StopsWhenClosed()
+    {
+        var window = new RollingSampleWindow<int>(capacity: 30);
         window.Close();
-        Assert.False(window.ShouldTakeSample(0));
+        Assert.False(window.ShouldTakeSample());
         Assert.False(window.TryAdd(99));
     }
 

@@ -27,7 +27,6 @@ public partial class MainWindow : Window
     private string? _approvedConfigHash;
     private HonestStatus _status = new();
     private int _logicalProcessors;
-    private int _samplesTaken;
     private int _sampling;
 
     public MainWindow()
@@ -124,11 +123,21 @@ public partial class MainWindow : Window
     private void ShowDiagnostics(object sender, RoutedEventArgs e)
     {
         ShowPage(PageDiagnostics, NavDiagnostics, "Diagnostics");
-        if (!_samples.IsEnabled && _window.ShouldTakeSample(_samplesTaken))
+        StartSampling();
+    }
+
+    private void StartSampling()
+    {
+        if (_samples.IsEnabled || !_window.ShouldTakeSample())
         {
-            _sampleClock.Restart();
-            _samples.Start();
+            return;
         }
+
+        // CPU deltas from before a pause would be divided by the short interval after it, so the
+        // first sample after a restart has no delta.
+        _previousCpu.Clear();
+        _sampleClock.Restart();
+        _samples.Start();
     }
 
     private void ShowLoadouts(object sender, RoutedEventArgs e) => ShowPage(PageLoadouts, NavLoadouts, "Loadouts");
@@ -162,7 +171,7 @@ public partial class MainWindow : Window
 
     private async void SampleTick(object? sender, EventArgs e)
     {
-        if (!_window.ShouldTakeSample(_samplesTaken))
+        if (!_window.ShouldTakeSample())
         {
             _samples.Stop();
             return;
@@ -195,16 +204,11 @@ public partial class MainWindow : Window
 
             var observation = ProcessorTimeSeries.Observe(null, null, wall, processors, duration);
             _window.TryAdd(observation);
-            _samplesTaken++;
             ProcessList.ItemsSource = sample.Rows.OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase).ToList();
             DiagnosticsMeta.Text = "Samples " + _window.Count + "/" + _window.Capacity +
                                    " at " + (int)RollingSampleWindow<int>.DefaultInterval.TotalSeconds + "s. Collector " +
                                    duration.TotalMilliseconds.ToString("0") + " ms. Logical processors: " +
                                    (processors < 1 ? "unavailable" : processors.ToString()) + ".";
-            if (!_window.ShouldTakeSample(_samplesTaken))
-            {
-                _samples.Stop();
-            }
         }
         catch (Exception)
         {
@@ -223,10 +227,9 @@ public partial class MainWindow : Window
 
     private void ReleaseCloseTarget(object sender, RoutedEventArgs e)
     {
-        if (PageDiagnostics.Visibility == Visibility.Visible && _window.ShouldTakeSample(_samplesTaken))
+        if (PageDiagnostics.Visibility == Visibility.Visible)
         {
-            _sampleClock.Restart();
-            _samples.Start();
+            StartSampling();
         }
     }
 

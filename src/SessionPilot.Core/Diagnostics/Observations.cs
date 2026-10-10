@@ -127,7 +127,9 @@ public sealed class RollingSampleWindow<T>
 
     public void Close() => IsClosed = true;
 
-    public bool ShouldTakeSample(int samplesTaken) => !IsClosed && samplesTaken < Capacity;
+    // The window is bounded by dropping the oldest sample, not by a sample count, so sampling
+    // continues for as long as the Diagnostics page is open.
+    public bool ShouldTakeSample() => !IsClosed;
 
     public bool TryAdd(T sample)
     {
