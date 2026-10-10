@@ -1,14 +1,14 @@
 ---
-description: How to work through docs/remediation-plan.md (phases, testing, autonomous low-cost GitHub workflow)
+description: How to work through docs/implementation-plan-1.1.md (phases, testing, autonomous low-cost GitHub workflow)
 alwaysApply: true
 ---
 
 # Remediation workflow
 
-Work from `docs/remediation-plan.md`, one phase at a time, in order. Read its "How to work" section and the current phase only. The first phase with an unticked box is the current phase.
+Work from `docs/implementation-plan-1.1.md`, one phase at a time, in order. Read its "How to work" section and the current phase only. The first phase with an unticked box is the current phase.
 
 - The SessionPilot guardrails rule still applies. The plan never relaxes it. If a fix seems to need a forbidden write, record it under Blockers and move on.
 - Every bug fix gets a regression test. Run `dotnet test SessionPilot.slnx --nologo` before pushing. Logic the tests must reach moves out of the WPF window into Core or Infrastructure.
-- GitHub without asking: one branch and one PR per phase. Push once when green locally. Wait with a single `gh pr checks <n> --watch --fail-fast`. Merge with `gh pr merge <n> --squash --delete-branch`.
+- GitHub without asking: one branch and one PR per phase. Branch names are `feat/phase-N-short-name`. Push once when green locally. Wait with a single `gh pr checks <n> --watch --fail-fast`. Merge with `gh pr merge <n> --squash --delete-branch`.
 - Keep repo costs low: no CI polling loops, at most one rerun of a flaky run, and no issues, releases, labels, or settings changes. Never force-push `main`.
 - Tick plan checkboxes in the same PR as the fix. The plan is the only progress tracker. The repository is public: never commit secrets, real config values, or user-specific paths.

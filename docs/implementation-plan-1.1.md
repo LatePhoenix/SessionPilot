@@ -204,11 +204,11 @@ Branch: `feat/phase-0-decisions`. Scope: docs, `.cursor/rules`, a small measurem
 **Dependencies.** None.
 
 - [x] **0.1** Fill in the Decision column of section 2 from the owner's answers. Done 2026-10-10: every recommendation accepted, D2b deferred until measurements, D7 designed but not built.
-- [ ] **0.2** Edit `.cursor/rules/sessionpilot-guardrails.mdc` for each approved gate. Change only the sentences the gate covers. Example for D1: "Do not … modify … running applications" becomes "Do not modify running applications, except approved dev-stack operations under a session contract (D1)."
-- [ ] **0.3** Add section 23 "Version 1.1 decisions" to the specification. Move D2's standby purge to the non-goals explicitly.
-- [ ] **0.4** Point `.cursor/rules/remediation-workflow.mdc` at this file instead of `docs/remediation-plan.md`.
-- [ ] **0.5** Add `tools/measure-overhead.ps1`. It samples `SessionPilot.App` CPU time, working set, private bytes, handle count, and thread count from `Get-Process` every 5 s for N minutes and prints min, mean, and max. It runs against the installed or built app and writes nothing to the repo.
-- [ ] **0.6** Measure 1.0.2 on the owner's machine for 10 minutes on each of Dashboard, Diagnostics, and minimized. Record the numbers, the machine description (CPU model only, no user names), and the command in `docs/performance-baseline.md`.
+- [x] **0.2** Edit `.cursor/rules/sessionpilot-guardrails.mdc` for each approved gate. Change only the sentences the gate covers. Example for D1: "Do not … modify … running applications" becomes "Do not modify running applications, except approved dev-stack operations under a session contract (D1)."
+- [x] **0.3** Add section 23 "Version 1.1 decisions" to the specification. Move D2's standby purge to the non-goals explicitly.
+- [x] **0.4** Point `.cursor/rules/remediation-workflow.mdc` at this file instead of `docs/remediation-plan.md`.
+- [x] **0.5** Add `tools/measure-overhead.ps1`. It samples `SessionPilot.App` CPU time, working set, private bytes, handle count, and thread count from `Get-Process` every 5 s for N minutes and prints min, mean, and max. It runs against the installed or built app and writes nothing to the repo.
+- [ ] **0.6** Measure 1.0.2 on the owner's machine for 10 minutes on each of Dashboard, Diagnostics, and minimized. Record the numbers, the machine description (CPU model only, no user names), and the command in `docs/performance-baseline.md`. The table is still empty; the owner needs to run the measurement.
 
 **Acceptance.** The gates are recorded. The rule file and the specification agree with them. A baseline table exists with its method. No product code changed.
 

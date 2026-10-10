@@ -675,3 +675,30 @@ deltas. docs/architecture.md and docs/graceful-close.md were corrected.
 Still open:
 - CompiledPlan.Warnings, change risk, evidence, and verification text are
   not shown on the Plan review page.
+
+23. VERSION 1.1 DECISIONS (OCTOBER 10, 2026)
+Accepted October 10, 2026. The decisions below are final.
+
+D1  Approved. Running applications may change only through approved
+    dev-stack operations under a session contract: WSL distros, Docker
+    containers, Ollama model unloads, and user-written daemon stop or
+    start commands. Never Kill.
+D2  Approved. Working-set trim of approved optional processes is allowed
+    only as an off-by-default measured experiment. SessionPilot may always trim
+    its own working set. Standby-list purge remains a non-goal unless
+    D2b is approved after measurement.
+D2b Deferred until item 6.10 has measurements, and only if D7 is
+    approved.
+D3  Approved. Unattended phase changes are allowed only inside an
+    approved session contract. Automation never shows a UAC prompt.
+D4  Live Process Lasso writes, restarts, and reloads stay forbidden.
+    Writing a rules JSON file in the SessionPilot data folder, for the
+    user to import in the Process Lasso GUI, is allowed.
+D5  Approved. SessionPilot may lower its own priority (BelowNormal,
+    EcoQoS, background mode). It never changes another process's
+    priority.
+D6  Approved for inventory, guided steps, and stop or start without
+    elevation. Helper verbs wait until D7 is approved. The main app
+    never requests elevation.
+D7  Approved to design the elevated helper now, and not to build it in
+    1.1 until D2b or D6 needs it.

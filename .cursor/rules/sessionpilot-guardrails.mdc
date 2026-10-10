@@ -8,7 +8,13 @@ alwaysApply: true
 The product name is SessionPilot. Process Lasso is the integrated product; keep names such as `ProcessLassoInstallation` when they refer to that product.
 
 - Do not invent INI keys, CLI commands, JSON import endpoints, registry locations, SteamVR keys, or reload behavior.
-- Do not write, restart, install, or modify live Process Lasso, Windows power plans, VR settings, services, or running applications.
+- Do not write, restart, install, or modify Windows power plans or VR settings. Do not install Process Lasso, services, or running applications.
+- Live Process Lasso writes, restarts, and reloads stay forbidden. Writing a rules JSON file inside the SessionPilot data folder for the user to import in the Process Lasso GUI is allowed.
+- Running applications may be changed only through approved dev-stack operations (WSL distros, Docker containers, Ollama model unloads, user-written daemon stop/start commands) under a session contract, never with Kill.
+- Working-set trim of approved optional processes is allowed only as an off-by-default measured experiment. SessionPilot may always trim its own working set. Standby-list purge stays forbidden unless D2b and D7 are approved.
+- Unattended phase changes are allowed only inside an approved session contract. Automation never shows a UAC prompt.
+- SessionPilot may lower its own priority (BelowNormal, EcoQoS, background mode). It never changes another process's priority.
+- Windows services may be stopped or started only without elevation, or through the elevated helper once D7 is approved. The main app never requests elevation.
 - Do not author shell commands, process arguments, or configuration text from a model. Presets, diagnostics, planning, and restoration work with the language provider unset.
 - Unsupported capabilities stay visible guided workflows. Performance effect stays "not measured" until a real measurement exists.
 - SessionPilot is not affiliated with Bitsum and does not bundle Process Lasso.
