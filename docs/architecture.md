@@ -2,8 +2,8 @@
 
 The solution has three projects:
 
-- `SessionPilot.Core` holds INI editing, presets, planning, triggers, transactions, CPU math, cleanup policy, session state, and Ollama schema checks. It does not start processes by itself.
-- `SessionPilot.Infrastructure` reads installation candidates, topology buffers, process identity, and the installed power-plan list. It has no write path for Process Lasso.
+- `SessionPilot.Core` holds INI editing, presets, planning, triggers, transactions, CPU math, cleanup policy, session state, and the Ollama client. The one process it starts is `ollama serve`, through `OllamaServeLauncher`, and only when nothing is listening on the Ollama port. It stops only that process. Other process starts go through interfaces that Infrastructure implements.
+- `SessionPilot.Infrastructure` reads installation candidates, processor topology, process samples, and the installed power-plan list. It starts confirmed launches (`ShellProcessStarter`), sends graceful close requests (`LiveWindowCloser`), runs `powercfg /list`, and saves `state.json` (`AppStateStore`). It has no write path for Process Lasso.
 - `SessionPilot.App` is the WPF shell. It calls Core and Infrastructure. `--check` is a startup argument, not a second executable.
 
 SDK: .NET 10.0.303 from `global.json`. The app targets `net10.0-windows`.

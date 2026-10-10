@@ -8,7 +8,7 @@ Automated tests use a fake closer. They do not target live processes. Continuous
 
 ## Opt-in manual check
 
-This check is not part of the automated suite and was not run during development.
+This check is not part of the automated suite. It was run once against the installed 1.0.1 build on 2026-10-07, as recorded in `docs/live-test-plan.md`: a process with no window was refused, and a close request closed Notepad.
 
 1. Start an application you can discard, such as a blank Notepad window you opened yourself.
 2. Open SessionPilot, go to Diagnostics, and select that one process.
